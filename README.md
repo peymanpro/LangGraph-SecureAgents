@@ -8,6 +8,8 @@ LangGraph-SecureAgents is an experimental Python library for enforcing authoriza
 
 ## Security principles
 
+Read the [threat model](docs/threat-model.md) for trust boundaries and deployment guidance, and [SECURITY.md](SECURITY.md) for vulnerability reporting and security limitations.
+
 1. **Default deny:** no matching allow policy means access is denied.
 2. **Deny overrides:** an explicit deny rule wins over any matching allow rule.
 3. **Deterministic authorization:** model output cannot grant permissions.
@@ -125,7 +127,8 @@ GitHub Actions runs these checks across Python 3.11, 3.12, and 3.13 on pull requ
 - [x] Model-free LangGraph workflow example with mock payroll data
 - [ ] Example conversational agent using a model provider
 - [ ] Human-approval integration for selected sensitive actions
-- [ ] Threat model, API review, and release-readiness checks
+- [x] Initial threat model and security reporting guidance
+- [ ] API review and release-readiness checks
 
 ## License
 
