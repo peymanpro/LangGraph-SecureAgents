@@ -353,6 +353,7 @@ def test_middleware_rejects_invalid_configuration() -> None:
         ({"action_resolver": object()}, TypeError, "action_resolver must be callable"),
         ({"resource_resolver": object()}, TypeError, "resource_resolver must be callable"),
         ({"audit_callback": object()}, TypeError, "audit_callback must be callable"),
+        ({"approval_validator": object()}, TypeError, "approval_validator must be callable"),
     ]
 
     for overrides, exception, message in cases:
@@ -547,3 +548,123 @@ def test_approval_fingerprint_rejects_cyclic_arguments() -> None:
             middleware_request(args={"cycle": cyclic_values}, tool_call_id="call-cycle"),
             lambda request: ToolMessage(content="should not run", tool_call_id="call-cycle"),
         )
+
+
+
+def test_approval_validator_consumes_identical_request_only_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handler_calls: list[str] = []
+    audit_reasons: list[str] = []
+    fingerprints: list[str] = []
+    consumed_fingerprints: set[str] = set()
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "approved": True,
+            "request_fingerprint": payload["request_fingerprint"],
+            "reviewer_id": "reviewer-17",
+        }
+
+    def validate_and_consume(
+        approval: Mapping[str, Any],
+        access_request: Any,
+        fingerprint: str,
+    ) -> bool:
+        assert approval["reviewer_id"] == "reviewer-17"
+        assert access_request.principal.principal_id == "alice"
+        fingerprints.append(fingerprint)
+        if fingerprint in consumed_fingerprints:
+            return False
+        consumed_fingerprints.add(fingerprint)
+        return True
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
+        approval_validator=validate_and_consume,
+    )
+
+    def handler(request: Any) -> ToolMessage:
+        handler_calls.append(request.tool_call["id"])
+        return ToolMessage(content="approved", tool_call_id=request.tool_call["id"])
+
+    def same_request() -> Any:
+        return middleware_request(
+            args={"employee_id": "employee-7"},
+            tool_call_id="same-idempotency-key",
+            context={"user_id": "alice"},
+        )
+
+    first = middleware.wrap_tool_call(same_request(), handler)
+    second = middleware.wrap_tool_call(same_request(), handler)
+
+    assert isinstance(first, ToolMessage)
+    assert first.content == "approved"
+    assert isinstance(second, ToolMessage)
+    assert second.status == "error"
+    assert second.content == "Approval response invalid; tool was not executed."
+    assert fingerprints[0] == fingerprints[1]
+    assert handler_calls == ["same-idempotency-key"]
+    assert audit_reasons == ["human_approved", "approval_invalid"]
+
+
+@pytest.mark.parametrize("validator_result", [False, None, 1, "yes"])
+def test_approval_validator_requires_literal_true(
+    monkeypatch: pytest.MonkeyPatch,
+    validator_result: object,
+) -> None:
+    handler_calls: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        approval_validator=lambda approval, request, fingerprint: validator_result,  # type: ignore[return-value]
+    )
+
+    response = middleware.wrap_tool_call(
+        middleware_request(tool_call_id="call-validator-result"),
+        lambda request: handler_calls.append(True),
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Approval response invalid; tool was not executed."
+    assert handler_calls == []
+
+
+def test_approval_validator_exception_fails_closed_before_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handler_calls: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    def unavailable_validator(
+        approval: Mapping[str, Any],
+        access_request: Any,
+        fingerprint: str,
+    ) -> bool:
+        raise RuntimeError("approval store unavailable")
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        approval_validator=unavailable_validator,
+    )
+
+    with pytest.raises(RuntimeError, match="approval store unavailable"):
+        middleware.wrap_tool_call(
+            middleware_request(tool_call_id="call-validator-error"),
+            lambda request: handler_calls.append(True),
+        )
+
+    assert handler_calls == []
