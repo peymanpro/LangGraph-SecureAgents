@@ -92,3 +92,19 @@ jobs:
           assert decision.allowed, decision
           print("Installed wheel smoke test passed.")
           PY
+
+      - name: Smoke-test optional LangChain agent extra
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-extra
+          /tmp/langgraph-secure-agents-extra/bin/python -m pip install ".[langchain-agents]"
+          /tmp/langgraph-secure-agents-extra/bin/python - <<'PY'
+          from langgraph_secure_agents import PolicyEngine, Principal
+          from langgraph_secure_agents.middleware import create_authorization_middleware
+
+          middleware = create_authorization_middleware(
+              PolicyEngine(),
+              lambda context: Principal("smoke-user"),
+          )
+          assert callable(middleware.wrap_tool_call)
+          print("Optional middleware extra smoke test passed.")
+          PY
