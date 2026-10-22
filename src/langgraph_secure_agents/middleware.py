@@ -213,6 +213,7 @@ def create_authorization_middleware(
             if tuple(rule.rule_id for rule in matched_policy_rules) != decision.matched_rule_ids:
                 raise RuntimeError("policy decision refers to an unknown policy rule")
 
+            execution_scope = _approval_execution_scope(runtime)
             fingerprint = _approval_fingerprint(
                 tool_name=tool_name,
                 tool_args=tool_args,
@@ -220,6 +221,7 @@ def create_authorization_middleware(
                 access_request=access_request,
                 matched_rule_ids=decision.matched_rule_ids,
                 matched_policy_rules=matched_policy_rules,
+                execution_scope=execution_scope,
             )
             approval = interrupt(
                 {
@@ -232,7 +234,7 @@ def create_authorization_middleware(
                     "action": access_request.action,
                     "resource": access_request.resource,
                     "policy_rule_ids": list(decision.matched_rule_ids),
-                    "execution_scope": _approval_execution_scope(runtime),
+                    "execution_scope": execution_scope,
                     "request_fingerprint": fingerprint,
                 }
             )
