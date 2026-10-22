@@ -21,6 +21,12 @@ classifiers = [
   "Typing :: Typed",
 ]
 
+[project.urls]
+Homepage = "https://github.com/peymanpro/LangGraph-SecureAgents"
+Repository = "https://github.com/peymanpro/LangGraph-SecureAgents"
+Issues = "https://github.com/peymanpro/LangGraph-SecureAgents/issues"
+Security = "https://github.com/peymanpro/LangGraph-SecureAgents/blob/main/SECURITY.md"
+
 [project.optional-dependencies]
 langgraph = ["langgraph>=1.0,<2.0"]
 langchain-agents = ["langchain>=1.0,<2.0"]
