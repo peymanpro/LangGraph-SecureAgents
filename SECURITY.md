@@ -18,7 +18,7 @@ When reporting, include the affected commit or version, a concise impact descrip
 - Authorization context must not be copied blindly from user-controlled request fields or LLM-generated output.
 - Protected tools must enforce authorization against the same resource they actually access; configure resource resolvers carefully.
 - Downstream services and data stores should continue to enforce their own access controls.
-- The library does not currently provide authentication, tenant isolation, rate limiting, prompt-injection prevention, secret management, or built-in human approval.
+- The library does not provide authentication, tenant isolation, rate limiting, prompt-injection prevention, secret management, or a human reviewer service. Its optional approval interrupt pauses execution, but the host application must authenticate reviewers and secure the resume endpoint.
 - Security behavior should be verified against the exact version and policy configuration being deployed.
 
 Do not use this experimental project as the sole security boundary for production or sensitive data.

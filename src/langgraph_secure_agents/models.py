@@ -37,6 +37,7 @@ class Effect(StrEnum):
 
     ALLOW = "allow"
     DENY = "deny"
+    REQUIRE_APPROVAL = "require_approval"
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,7 +101,7 @@ class PolicyRule:
         try:
             effect = Effect(self.effect)
         except (TypeError, ValueError) as exc:
-            raise ValueError("effect must be Effect.ALLOW or Effect.DENY") from exc
+            raise ValueError("effect must be ALLOW, DENY, or REQUIRE_APPROVAL") from exc
         object.__setattr__(self, "effect", effect)
 
         actions = _normalized_set(self.actions, "actions")
@@ -134,3 +135,4 @@ class Decision:
     allowed: bool
     reason: str
     matched_rule_ids: tuple[str, ...] = ()
+    requires_approval: bool = False
