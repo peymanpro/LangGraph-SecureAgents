@@ -214,3 +214,38 @@ def test_decision_rejects_non_iterable_rule_ids() -> None:
             reason="explicit_deny",
             matched_rule_ids=42,  # type: ignore[arg-type]
         )
+
+
+
+def test_decision_rejects_unknown_reason() -> None:
+    with pytest.raises(ValueError, match="known DecisionReason"):
+        Decision(allowed=False, reason="unknown_reason")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {"allowed": True, "reason": "explicit_allow", "matched_rule_ids": ()},
+            "requires matched_rule_ids",
+        ),
+        (
+            {"allowed": False, "reason": "explicit_deny", "matched_rule_ids": ()},
+            "requires matched_rule_ids",
+        ),
+        (
+            {"allowed": False, "reason": "approval_required", "matched_rule_ids": ("approval",),
+             "requires_approval": True},
+            "requires matched_rule_ids",
+        ),
+        (
+            {"allowed": False, "reason": "default_deny", "matched_rule_ids": ("irrelevant",)},
+            "default_deny cannot have matched_rule_ids",
+        ),
+    ],
+)
+def test_decision_requires_rule_ids_consistent_with_reason(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Decision(**kwargs)  # type: ignore[arg-type]
