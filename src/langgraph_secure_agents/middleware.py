@@ -20,6 +20,7 @@ PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
 ResourceResolver = Callable[[str, Mapping[str, Any]], str]
 AuditCallback = Callable[[AccessRequest, Decision], None]
+ApprovalValidator = Callable[[Mapping[str, Any], AccessRequest, str], bool]
 
 
 def _canonical_json_value(value: Any) -> Any:
@@ -96,6 +97,7 @@ def create_authorization_middleware(
     action_resolver: ActionResolver | None = None,
     resource_resolver: ResourceResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    approval_validator: ApprovalValidator | None = None,
 ) -> Any:
     """Create middleware that authorizes every tool call before execution.
 
@@ -112,8 +114,15 @@ def create_authorization_middleware(
     shown in the interrupt payload. The host application must authenticate the
     reviewer and authorize access to the resume operation; the payload alone is
     not proof that an authorized human approved the action. The fingerprint is
-    deterministic, not a one-time token. For side-effecting tools, the host must
-    enforce unique per-operation IDs and durable one-time approval consumption.
+    deterministic, not a one-time token. Configure approval_validator when the
+    host needs reviewer authentication/authorization and durable one-time
+    approval consumption. The callback receives the approval mapping, access
+    request, and fingerprint; it must authenticate/authorize the reviewer and
+    atomically consume the approval, returning literal True only for the first
+    valid use. Any other return value fails closed. If the callback raises, the
+    exception propagates and the tool handler is not invoked. Its result must
+    not be based on untrusted model output. Without this callback, the host
+    remains responsible for these controls externally.
 
     Custom action/resource resolvers receive detached argument copies. Mutating
     those copies raises an error before the protected tool runs. Resolvers must
@@ -133,6 +142,8 @@ def create_authorization_middleware(
         raise TypeError("resource_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
+    if approval_validator is not None and not callable(approval_validator):
+        raise TypeError("approval_validator must be callable")
 
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
@@ -205,11 +216,20 @@ def create_authorization_middleware(
                 }
             )
 
-            if (
-                not isinstance(approval, Mapping)
-                or type(approval.get("approved")) is not bool
-                or approval.get("request_fingerprint") != fingerprint
-            ):
+            approval_valid = (
+                isinstance(approval, Mapping)
+                and type(approval.get("approved")) is bool
+                and approval.get("request_fingerprint") == fingerprint
+            )
+            if approval_valid and approval_validator is not None:
+                validation_result = approval_validator(
+                    approval,
+                    access_request,
+                    fingerprint,
+                )
+                approval_valid = type(validation_result) is bool and validation_result
+
+            if not approval_valid:
                 outcome = Decision(
                     allowed=False,
                     reason=DecisionReason.APPROVAL_INVALID,
