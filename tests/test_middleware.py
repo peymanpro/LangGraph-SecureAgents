@@ -469,9 +469,7 @@ def test_approval_fingerprint_binds_the_matched_policy_definition(
     for policy in policies:
         middleware = create_authorization_middleware(
             policy,
-            principal_resolver=lambda context: Principal(
-                "alice", roles=frozenset({"analyst"})
-            ),
+            principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
         )
         response = middleware.wrap_tool_call(
             middleware_request(args={"employee_id": "employee-7"}, tool_call_id="call-policy"),
