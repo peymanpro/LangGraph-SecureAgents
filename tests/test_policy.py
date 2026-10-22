@@ -100,9 +100,7 @@ def test_standalone_wildcards_match_as_documented(
 
 
 def test_principal_id_and_role_constraints_are_combined_with_and() -> None:
-    engine = PolicyEngine(
-        [rule("alice-analyst", Effect.ALLOW, principal_ids=frozenset({"alice"}))]
-    )
+    engine = PolicyEngine([rule("alice-analyst", Effect.ALLOW, principal_ids=frozenset({"alice"}))])
 
     wrong_principal = engine.evaluate(request(principal_id="bob"))
     wrong_role = engine.evaluate(request(roles=frozenset({"guest"})))
@@ -119,16 +117,12 @@ def test_principal_id_and_role_constraints_are_combined_with_and() -> None:
         ("read", "reports", "bob"),
     ],
 )
-def test_non_matching_request_is_denied(
-    action: str, resource: str, principal_id: str
-) -> None:
+def test_non_matching_request_is_denied(action: str, resource: str, principal_id: str) -> None:
     engine = PolicyEngine(
         [rule("alice-read-reports", Effect.ALLOW, principal_ids=frozenset({"alice"}))]
     )
 
-    decision = engine.evaluate(
-        request(action=action, resource=resource, principal_id=principal_id)
-    )
+    decision = engine.evaluate(request(action=action, resource=resource, principal_id=principal_id))
 
     assert not decision.allowed
     assert decision.reason == "default_deny"
