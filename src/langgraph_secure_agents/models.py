@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
 def _normalized_text(value: str, field_name: str) -> str:
@@ -32,7 +32,7 @@ def _normalized_set(
     return frozenset(normalized)
 
 
-class Effect(str, Enum):
+class Effect(StrEnum):
     """The effect a matching policy rule has on an access request."""
 
     ALLOW = "allow"
@@ -51,7 +51,8 @@ class Principal:
     roles: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "principal_id", _normalized_text(self.principal_id, "principal_id"))
+        normalized_id = _normalized_text(self.principal_id, "principal_id")
+        object.__setattr__(self, "principal_id", normalized_id)
         object.__setattr__(
             self,
             "roles",
