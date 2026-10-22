@@ -34,6 +34,16 @@ python -m pip install -e ".[langchain-agents]"
 
 The core policy engine and callable guard do not require LangGraph or an LLM provider.
 
+## Run the model-free LangGraph example
+
+The example uses fake payroll records and a trusted runtime context. It needs no model API key:
+
+```bash
+python examples/policy_guarded_workflow.py
+```
+
+It demonstrates an allowed HR request, a denied request for an unapproved resource, and a denied request from a user without the required role.
+
 ## Quick start: deterministic policy engine
 
 ```python
@@ -112,7 +122,8 @@ GitHub Actions runs these checks across Python 3.11, 3.12, and 3.13 on pull requ
 - [x] Deny-overrides semantics and constrained wildcards
 - [x] Guarded callable and fail-closed auditing
 - [x] Optional agent tool-call middleware
-- [ ] Example agent with a harmless mock business tool
+- [x] Model-free LangGraph workflow example with mock payroll data
+- [ ] Example conversational agent using a model provider
 - [ ] Human-approval integration for selected sensitive actions
 - [ ] Threat model, API review, and release-readiness checks
 
