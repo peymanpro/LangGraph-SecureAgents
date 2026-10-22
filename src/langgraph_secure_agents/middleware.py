@@ -117,10 +117,12 @@ def create_authorization_middleware(
     deterministic, not a one-time token. Configure approval_validator when the
     host needs reviewer authentication/authorization and durable one-time
     approval consumption. The callback receives the approval mapping, access
-    request, and fingerprint; it must atomically validate and consume the
-    approval, returning literal True only once. Its result must not be based on
-    untrusted model output. Without this callback, the host remains responsible
-    for these controls externally.
+    request, and fingerprint; it must authenticate/authorize the reviewer and
+    atomically consume the approval, returning literal True only for the first
+    valid use. Any other return value fails closed. If the callback raises, the
+    exception propagates and the tool handler is not invoked. Its result must
+    not be based on untrusted model output. Without this callback, the host
+    remains responsible for these controls externally.
 
     Custom action/resource resolvers receive detached argument copies. Mutating
     those copies raises an error before the protected tool runs. Resolvers must
