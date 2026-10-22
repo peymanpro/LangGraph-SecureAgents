@@ -217,7 +217,6 @@ def test_approval_requirement_overrides_matching_allow_rule() -> None:
     assert decision.reason == "approval_required"
 
 
-
 def test_rules_property_returns_immutable_tuple() -> None:
     rules = (rule("one", Effect.ALLOW),)
     engine = PolicyEngine(rules)
