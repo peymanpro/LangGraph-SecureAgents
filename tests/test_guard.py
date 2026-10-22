@@ -196,7 +196,6 @@ def test_mutating_resource_resolver_fails_closed_before_callable_execution() -> 
     assert calls == []
 
 
-
 def test_protect_callable_rejects_invalid_configuration() -> None:
     def operation() -> None:
         return None
