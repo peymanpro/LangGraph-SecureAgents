@@ -7,6 +7,7 @@ import pytest
 from langchain_core.messages import ToolMessage
 
 from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
+from langgraph_secure_agents import middleware as middleware_module
 from langgraph_secure_agents.middleware import create_authorization_middleware
 
 
@@ -175,3 +176,136 @@ def test_principal_resolver_must_return_a_principal() -> None:
             middleware_request(context={"user_id": "alice"}),
             lambda request: ToolMessage(content="should not run", tool_call_id="call-6"),
         )
+
+
+
+def approval_rule() -> PolicyRule:
+    return PolicyRule(
+        rule_id="requires-human-approval",
+        effect=Effect.REQUIRE_APPROVAL,
+        actions=frozenset({"execute"}),
+        resources=frozenset({"read_payroll"}),
+        roles=frozenset({"analyst"}),
+    )
+
+
+def test_human_approval_resumes_and_then_executes_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interrupt_payloads: list[dict[str, Any]] = []
+    audit_events: list[tuple[str, bool]] = []
+    handler_calls: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        interrupt_payloads.append(payload)
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=lambda request, decision: audit_events.append(
+            (decision.reason, decision.allowed)
+        ),
+    )
+
+    def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        return ToolMessage(content="approved output", tool_call_id="call-approval")
+
+    response = middleware.wrap_tool_call(
+        middleware_request(tool_call_id="call-approval", context={"user_id": "alice"}),
+        handler,
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.content == "approved output"
+    assert handler_calls == [True]
+    assert len(interrupt_payloads) == 1
+    assert interrupt_payloads[0]["type"] == "authorization_approval"
+    assert interrupt_payloads[0]["principal_id"] == "alice"
+    assert interrupt_payloads[0]["request_fingerprint"]
+    assert audit_events == [("human_approved", True)]
+
+
+def test_human_rejection_never_executes_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handler_calls: list[bool] = []
+    audit_reasons: list[str] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": False, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
+    )
+
+    response = middleware.wrap_tool_call(
+        middleware_request(tool_call_id="call-rejected"),
+        lambda request: handler_calls.append(True),
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Human approval denied."
+    assert handler_calls == []
+    assert audit_reasons == ["approval_denied"]
+
+
+def test_mismatched_approval_fingerprint_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handler_calls: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": "not-the-request-fingerprint"}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    response = middleware.wrap_tool_call(
+        middleware_request(tool_call_id="call-tampered"),
+        lambda request: handler_calls.append(True),
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Approval response invalid; tool was not executed."
+    assert handler_calls == []
+
+
+def test_approval_fingerprint_binds_tool_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: list[dict[str, Any]] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        received.append(payload)
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    middleware.wrap_tool_call(
+        middleware_request(args={"employee_id": "employee-7"}, tool_call_id="call-args"),
+        lambda request: ToolMessage(content="ok", tool_call_id="call-args"),
+    )
+    first_fingerprint = received[-1]["request_fingerprint"]
+
+    middleware.wrap_tool_call(
+        middleware_request(args={"employee_id": "employee-8"}, tool_call_id="call-args"),
+        lambda request: ToolMessage(content="ok", tool_call_id="call-args"),
+    )
+    second_fingerprint = received[-1]["request_fingerprint"]
+
+    assert first_fingerprint != second_fingerprint
