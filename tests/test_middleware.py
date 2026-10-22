@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import ToolMessage
 
-from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
+from langgraph_secure_agents import Decision, DecisionReason, Effect, PolicyEngine, PolicyRule, Principal
 from langgraph_secure_agents import middleware as middleware_module
 from langgraph_secure_agents.middleware import create_authorization_middleware
 
@@ -559,6 +559,30 @@ def test_approval_fingerprint_rejects_cyclic_arguments() -> None:
         middleware.wrap_tool_call(
             middleware_request(args={"cycle": cyclic_values}, tool_call_id="call-cycle"),
             lambda request: ToolMessage(content="should not run", tool_call_id="call-cycle"),
+        )
+
+
+def test_unknown_matched_policy_rule_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def inconsistent_evaluate(self: PolicyEngine, request: Any) -> Decision:
+        return Decision(
+            allowed=False,
+            reason=DecisionReason.APPROVAL_REQUIRED,
+            matched_rule_ids=("missing-rule",),
+            requires_approval=True,
+        )
+
+    monkeypatch.setattr(PolicyEngine, "evaluate", inconsistent_evaluate)
+    middleware = create_authorization_middleware(
+        PolicyEngine(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    with pytest.raises(RuntimeError, match="unknown policy rule"):
+        middleware.wrap_tool_call(
+            middleware_request(context={"user_id": "alice"}),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-unknown-rule"),
         )
 
 
