@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from .models import AccessRequest, Decision, Effect, PolicyRule
+from .models import AccessRequest, Decision, DecisionReason, Effect, PolicyRule
 
 
 class PolicyEngine:
@@ -55,7 +55,7 @@ class PolicyEngine:
         if denying_rule_ids:
             return Decision(
                 allowed=False,
-                reason="explicit_deny",
+                reason=DecisionReason.EXPLICIT_DENY,
                 matched_rule_ids=denying_rule_ids,
             )
 
@@ -65,7 +65,7 @@ class PolicyEngine:
         if approval_rule_ids:
             return Decision(
                 allowed=False,
-                reason="approval_required",
+                reason=DecisionReason.APPROVAL_REQUIRED,
                 matched_rule_ids=approval_rule_ids,
                 requires_approval=True,
             )
@@ -76,11 +76,11 @@ class PolicyEngine:
         if allowing_rule_ids:
             return Decision(
                 allowed=True,
-                reason="explicit_allow",
+                reason=DecisionReason.EXPLICIT_ALLOW,
                 matched_rule_ids=allowing_rule_ids,
             )
 
-        return Decision(allowed=False, reason="default_deny")
+        return Decision(allowed=False, reason=DecisionReason.DEFAULT_DENY)
 
     @staticmethod
     def _matches(rule: PolicyRule, request: AccessRequest) -> bool:
