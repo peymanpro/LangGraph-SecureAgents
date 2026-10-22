@@ -149,8 +149,7 @@ class Decision:
             raise ValueError("matched_rule_ids must be a collection of rule IDs")
         try:
             rule_ids = tuple(
-                _normalized_text(rule_id, "matched_rule_ids")
-                for rule_id in self.matched_rule_ids
+                _normalized_text(rule_id, "matched_rule_ids") for rule_id in self.matched_rule_ids
             )
         except TypeError as exc:
             raise ValueError("matched_rule_ids must be an iterable of strings") from exc
