@@ -48,9 +48,7 @@ def _approval_fingerprint(
             separators=(",", ":"),
         )
     except (TypeError, ValueError) as exc:
-        raise ValueError(
-            "approval-required tool arguments must be JSON-serializable"
-        ) from exc
+        raise ValueError("approval-required tool arguments must be JSON-serializable") from exc
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
