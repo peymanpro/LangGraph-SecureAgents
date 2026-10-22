@@ -260,6 +260,7 @@ def test_mismatched_approval_fingerprint_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     handler_calls: list[bool] = []
+    audit_reasons: list[str] = []
 
     def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
         return {"approved": True, "request_fingerprint": "not-the-request-fingerprint"}
@@ -268,6 +269,7 @@ def test_mismatched_approval_fingerprint_fails_closed(
     middleware = create_authorization_middleware(
         PolicyEngine([approval_rule()]),
         principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
     )
 
     response = middleware.wrap_tool_call(
@@ -279,6 +281,7 @@ def test_mismatched_approval_fingerprint_fails_closed(
     assert response.status == "error"
     assert response.content == "Approval response invalid; tool was not executed."
     assert handler_calls == []
+    assert audit_reasons == ["approval_invalid"]
 
 
 def test_approval_fingerprint_binds_tool_arguments(
@@ -337,3 +340,102 @@ def test_mutating_scope_resolver_fails_closed_without_changing_tool_args(
 
     assert tool_args == {"employee_id": "employee-8"}
     assert handler_calls == []
+
+
+def test_middleware_rejects_invalid_configuration() -> None:
+    valid_options: dict[str, Any] = {
+        "policy": PolicyEngine(),
+        "principal_resolver": lambda context: Principal("alice"),
+    }
+    cases: list[tuple[dict[str, Any], type[Exception], str]] = [
+        ({"policy": object()}, TypeError, "PolicyEngine instance"),
+        ({"principal_resolver": None}, TypeError, "principal_resolver must be callable"),
+        ({"action_resolver": object()}, TypeError, "action_resolver must be callable"),
+        ({"resource_resolver": object()}, TypeError, "resource_resolver must be callable"),
+        ({"audit_callback": object()}, TypeError, "audit_callback must be callable"),
+    ]
+
+    for overrides, exception, message in cases:
+        with pytest.raises(exception, match=message):
+            create_authorization_middleware(
+                **{**valid_options, **overrides}  # type: ignore[arg-type]
+            )
+
+
+def test_middleware_rejects_malformed_tool_call_requests() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine(),
+        principal_resolver=lambda context: Principal("alice"),
+    )
+
+    def handler(request: Any) -> ToolMessage:
+        return ToolMessage(content="should not run", tool_call_id="call-1")
+
+    with pytest.raises(TypeError, match="tool_call mapping"):
+        middleware.wrap_tool_call(SimpleNamespace(runtime=SimpleNamespace(context=None)), handler)
+
+    with pytest.raises(ValueError, match="non-empty name"):
+        middleware.wrap_tool_call(
+            middleware_request(name="   "),
+            handler,
+        )
+
+    malformed_args_request = SimpleNamespace(
+        tool_call={"name": "read_payroll", "args": "not-a-mapping", "id": "call-args"},
+        runtime=SimpleNamespace(context=None),
+        state={},
+        tool=None,
+    )
+    with pytest.raises(TypeError, match="args must be a mapping"):
+        middleware.wrap_tool_call(malformed_args_request, handler)
+
+
+def test_denied_tool_call_without_id_fails_closed() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine(),
+        principal_resolver=lambda context: Principal("guest"),
+    )
+    request = SimpleNamespace(
+        tool_call={"name": "read_payroll", "args": {}},
+        runtime=SimpleNamespace(context=None),
+        state={},
+        tool=None,
+    )
+
+    with pytest.raises(ValueError, match="must include a tool-call id"):
+        middleware.wrap_tool_call(
+            request,
+            lambda tool_request: ToolMessage(content="should not run", tool_call_id="call-no-id"),
+        )
+
+
+def test_approval_required_call_without_id_fails_closed() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+    request = SimpleNamespace(
+        tool_call={"name": "read_payroll", "args": {}},
+        runtime=SimpleNamespace(context=None),
+        state={},
+        tool=None,
+    )
+
+    with pytest.raises(ValueError, match="must include a tool-call id"):
+        middleware.wrap_tool_call(
+            request,
+            lambda tool_request: ToolMessage(content="should not run", tool_call_id="call-no-id"),
+        )
+
+
+def test_approval_with_non_json_arguments_fails_closed() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        middleware.wrap_tool_call(
+            middleware_request(args={"payload": object()}),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-1"),
+        )

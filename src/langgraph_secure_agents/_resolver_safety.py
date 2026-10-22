@@ -36,8 +36,6 @@ def call_resolver_without_mutation(
 
     try:
         mutated = resolver_args != args_before or resolver_kwargs != kwargs_before
-        if not isinstance(mutated, bool):
-            mutated = bool(mutated)
     except Exception as exc:
         raise ValueError("resolver input mutation could not be checked safely") from exc
 
