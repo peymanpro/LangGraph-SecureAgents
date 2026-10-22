@@ -26,6 +26,7 @@ langgraph = ["langgraph>=1.0,<2.0"]
 langchain-agents = ["langchain>=1.0,<2.0"]
 dev = [
   "langchain>=1.0,<2.0",
+  "langgraph>=1.0,<2.0",
   "mypy>=1.13",
   "pytest>=8.3",
   "pytest-cov>=6.0",
@@ -38,7 +39,7 @@ packages = ["src/langgraph_secure_agents"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100
