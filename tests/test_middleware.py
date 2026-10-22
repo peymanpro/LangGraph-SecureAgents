@@ -34,10 +34,22 @@ def middleware_request(
     args: dict[str, Any] | None = None,
     tool_call_id: str = "call-1",
     context: object = None,
+    thread_id: str = "test-thread",
+    checkpoint_id: str = "test-checkpoint",
+    checkpoint_ns: str = "",
+    task_id: str = "test-task",
 ) -> SimpleNamespace:
     return SimpleNamespace(
         tool_call={"name": name, "args": args or {}, "id": tool_call_id},
-        runtime=SimpleNamespace(context=context),
+        runtime=SimpleNamespace(
+            context=context,
+            execution_info=SimpleNamespace(
+                thread_id=thread_id,
+                checkpoint_id=checkpoint_id,
+                checkpoint_ns=checkpoint_ns,
+                task_id=task_id,
+            ),
+        ),
         state={},
         tool=None,
     )
@@ -282,6 +294,63 @@ def test_mismatched_approval_fingerprint_fails_closed(
     assert response.content == "Approval response invalid; tool was not executed."
     assert handler_calls == []
     assert audit_reasons == ["approval_invalid"]
+
+
+def test_approval_fingerprint_binds_checkpoint_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fingerprints: list[str] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        fingerprints.append(payload["request_fingerprint"])
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    for checkpoint_id in ("checkpoint-one", "checkpoint-two"):
+        response = middleware.wrap_tool_call(
+            middleware_request(
+                args={"employee_id": "employee-7"},
+                tool_call_id="call-same",
+                context={"user_id": "alice"},
+                checkpoint_id=checkpoint_id,
+            ),
+            lambda request: ToolMessage(content="approved", tool_call_id="call-same"),
+        )
+        assert isinstance(response, ToolMessage)
+
+    assert len(fingerprints) == 2
+    assert fingerprints[0] != fingerprints[1]
+
+
+def test_approval_fails_closed_without_checkpoint_execution_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interrupt_called: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        interrupt_called.append(True)
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+    request = middleware_request(context={"user_id": "alice"})
+    request.runtime.execution_info = None
+
+    with pytest.raises(RuntimeError, match="execution metadata"):
+        middleware.wrap_tool_call(
+            request,
+            lambda tool_request: ToolMessage(content="should not run", tool_call_id="call-1"),
+        )
+
+    assert interrupt_called == []
 
 
 def test_approval_fingerprint_binds_tool_arguments(
