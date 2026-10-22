@@ -133,7 +133,7 @@ When this policy is used with the optional agent middleware, LangGraph pauses at
 }
 ```
 
-The middleware rejects missing, malformed, or mismatched approval responses. The fingerprint binds the response to the current principal, roles, tool call, arguments, action, resource, and matching policy rules. **It is not proof of reviewer identity or permission.** The host application must authenticate the reviewer, authorize who can resume the paused run, protect the resume endpoint, and use a checkpointer. An explicit matching deny rule always takes precedence over approval.
+The middleware rejects missing, malformed, or mismatched approval responses. The fingerprint binds the response to the current principal, roles, tool call, arguments, action, resource, and exact definitions of the matched policy rules. Fingerprinting rejects non-string JSON object keys, non-finite numbers, cyclic structures, and other non-JSON argument values. **The fingerprint is a request-binding check, not proof of reviewer identity or permission.** The host application must authenticate the reviewer, authorize who can resume the paused run, protect the resume endpoint, and use a checkpointer. An explicit matching deny rule always takes precedence over approval.
 
 ## Validation
 
