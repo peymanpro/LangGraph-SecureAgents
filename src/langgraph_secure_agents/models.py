@@ -136,3 +136,45 @@ class Decision:
     reason: str
     matched_rule_ids: tuple[str, ...] = ()
     requires_approval: bool = False
+
+    def __post_init__(self) -> None:
+        if type(self.allowed) is not bool:
+            raise ValueError("allowed must be a boolean")
+
+        reason = _normalized_text(self.reason, "reason")
+        if type(self.requires_approval) is not bool:
+            raise ValueError("requires_approval must be a boolean")
+
+        if isinstance(self.matched_rule_ids, (str, bytes)):
+            raise ValueError("matched_rule_ids must be a collection of rule IDs")
+        try:
+            rule_ids = tuple(
+                _normalized_text(rule_id, "matched_rule_ids")
+                for rule_id in self.matched_rule_ids
+            )
+        except TypeError as exc:
+            raise ValueError("matched_rule_ids must be an iterable of strings") from exc
+
+        if len(set(rule_ids)) != len(rule_ids):
+            raise ValueError("matched_rule_ids cannot contain duplicates")
+
+        if self.requires_approval != (reason == "approval_required"):
+            raise ValueError(
+                "requires_approval must be true exactly when reason is 'approval_required'"
+            )
+
+        denied_reasons = {
+            "explicit_deny",
+            "default_deny",
+            "approval_required",
+            "approval_invalid",
+            "approval_denied",
+        }
+        allowed_reasons = {"explicit_allow", "human_approved"}
+        if self.allowed and reason in denied_reasons:
+            raise ValueError(f"reason {reason!r} cannot describe an allowed decision")
+        if not self.allowed and reason in allowed_reasons:
+            raise ValueError(f"reason {reason!r} cannot describe a denied decision")
+
+        object.__setattr__(self, "reason", reason)
+        object.__setattr__(self, "matched_rule_ids", rule_ids)
