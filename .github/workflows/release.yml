@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build twine packaging
+
+      - name: Verify tag matches package version
+        id: metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from packaging.version import Version
+
+          with open("pyproject.toml", "rb") as file:
+              version = tomllib.load(file)["project"]["version"]
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected_tag = f"v{version}"
+          if tag != expected_tag:
+              raise SystemExit(f"Tag {tag!r} does not match package version tag {expected_tag!r}")
+
+          parsed_version = Version(version)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+              output.write(f"prerelease={str(parsed_version.is_prerelease or parsed_version.is_devrelease).lower()}\n")
+          PY
+
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Validate distribution metadata
+        run: python -m twine check dist/*
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: LangGraph-SecureAgents v${{ steps.metadata.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: dist/*
