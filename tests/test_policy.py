@@ -71,15 +71,15 @@ def test_matching_deny_overrides_matching_allow() -> None:
 
 
 @pytest.mark.parametrize(
-    ("actions", "resources"),
+    ("actions", "resources", "action", "resource"),
     [
-        (frozenset({"*"}), frozenset({"reports"})),
-        (frozenset({"read"}), frozenset({"*"})),
-        (frozenset({"*"}), frozenset({"*"})),
+        (frozenset({"*"}), frozenset({"reports"}), "delete", "reports"),
+        (frozenset({"read"}), frozenset({"*"}), "read", "payroll"),
+        (frozenset({"*"}), frozenset({"*"}), "delete", "unlisted-resource"),
     ],
 )
 def test_standalone_wildcards_match_as_documented(
-    actions: frozenset[str], resources: frozenset[str]
+    actions: frozenset[str], resources: frozenset[str], action: str, resource: str
 ) -> None:
     engine = PolicyEngine(
         [
@@ -94,15 +94,15 @@ def test_standalone_wildcards_match_as_documented(
         ]
     )
 
-    decision = engine.evaluate(request(principal_id="bob", roles=frozenset(), action="delete"))
+    decision = engine.evaluate(
+        request(principal_id="bob", roles=frozenset(), action=action, resource=resource)
+    )
 
     assert decision.allowed
 
 
 def test_principal_id_and_role_constraints_are_combined_with_and() -> None:
-    engine = PolicyEngine(
-        [rule("alice-analyst", Effect.ALLOW, principal_ids=frozenset({"alice"}))]
-    )
+    engine = PolicyEngine([rule("alice-analyst", Effect.ALLOW, principal_ids=frozenset({"alice"}))])
 
     wrong_principal = engine.evaluate(request(principal_id="bob"))
     wrong_role = engine.evaluate(request(roles=frozenset({"guest"})))
@@ -119,16 +119,12 @@ def test_principal_id_and_role_constraints_are_combined_with_and() -> None:
         ("read", "reports", "bob"),
     ],
 )
-def test_non_matching_request_is_denied(
-    action: str, resource: str, principal_id: str
-) -> None:
+def test_non_matching_request_is_denied(action: str, resource: str, principal_id: str) -> None:
     engine = PolicyEngine(
         [rule("alice-read-reports", Effect.ALLOW, principal_ids=frozenset({"alice"}))]
     )
 
-    decision = engine.evaluate(
-        request(action=action, resource=resource, principal_id=principal_id)
-    )
+    decision = engine.evaluate(request(action=action, resource=resource, principal_id=principal_id))
 
     assert not decision.allowed
     assert decision.reason == "default_deny"
