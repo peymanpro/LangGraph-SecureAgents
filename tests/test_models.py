@@ -234,7 +234,7 @@ def test_decision_rejects_unknown_reason() -> None:
             "requires matched_rule_ids",
         ),
         (
-            {"allowed": False, "reason": "approval_required", "matched_rule_ids": ("approval",),
+            {"allowed": False, "reason": "approval_required", "matched_rule_ids": (),
              "requires_approval": True},
             "requires matched_rule_ids",
         ),
