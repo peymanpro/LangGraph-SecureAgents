@@ -77,6 +77,10 @@ def create_authorization_middleware(
     reviewer and authorize access to the resume operation; the payload alone is
     not proof that an authorized human approved the action.
 
+    Custom action/resource resolvers receive detached argument copies. Mutating
+    those copies raises an error before the protected tool runs. Resolvers must
+    otherwise be trusted, side-effect-free application code.
+
     If configured auditing raises, the tool handler is not invoked (fail closed).
     Approval outcomes are audited after the interrupt resumes.
     """
