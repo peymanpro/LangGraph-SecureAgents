@@ -143,7 +143,6 @@ def test_principal_wildcard_cannot_be_mixed_with_specific_identities() -> None:
         )
 
 
-
 def test_decision_normalizes_rule_ids_to_an_immutable_tuple() -> None:
     rule_ids = ["deny-payroll"]
     decision = Decision(
