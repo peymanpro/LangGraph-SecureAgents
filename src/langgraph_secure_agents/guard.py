@@ -6,6 +6,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
+from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, Principal
 from .policy import PolicyEngine
 
@@ -71,10 +72,15 @@ def protect_callable(
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
 
+        if resource_resolver is None:
+            resource = resource_name
+        else:
+            resource = call_resolver_without_mutation(resolve_resource, *args, **kwargs)
+
         request = AccessRequest(
             principal=principal,
             action=normalized_action,
-            resource=resolve_resource(*args, **kwargs),
+            resource=resource,
         )
         decision = policy.evaluate(request)
 
