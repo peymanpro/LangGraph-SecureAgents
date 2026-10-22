@@ -310,6 +310,7 @@ def test_approval_fingerprint_binds_tool_arguments(
 
     assert first_fingerprint != second_fingerprint
 
+
 @pytest.mark.parametrize("mutating_resolver", ["action", "resource"])
 def test_mutating_scope_resolver_fails_closed_without_changing_tool_args(
     mutating_resolver: str,
