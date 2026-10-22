@@ -167,6 +167,8 @@ def test_invalid_principal_resolver_result_fails_closed() -> None:
 
     assert calls == []
 
+
+
 def test_mutating_resource_resolver_fails_closed_before_callable_execution() -> None:
     calls: list[str] = []
     payload = {"employee_id": "employee-8"}
