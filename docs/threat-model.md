@@ -29,6 +29,10 @@ LLM-generated tool names, arguments, and natural-language claims are untrusted. 
 
 Policy rules are application security configuration. Only trusted operators or code should define and change them. A permissive wildcard rule can intentionally grant broad access, so policy changes require review and regression tests.
 
+### Resolver purity and underlying resource
+
+Action and resource resolvers take part in authorization decisions. Mutating input arguments during scope resolution can cause the policy target to differ from what a protected operation later consumes. The library supplies detached copies to these resolvers and fails closed when it detects input mutation or cannot validate that the copies remain unchanged. Resolver callbacks must still be trusted application code and must not have unrelated side effects.
+
 ### Protected operation and underlying resource
 
 A wrapper only guards the callable or tool handler to which it is applied. The configured resource resolver must identify the same tenant and resource that the operation actually accesses. If the resolver checks one resource while the function accesses another, authorization can be bypassed.
@@ -56,6 +60,7 @@ When an audit callback is configured, callback failure stops protected execution
 | Model output claims the caller has a role | Identity comes from a trusted resolver | Authenticate users and validate claims |
 | A denied tool call would otherwise execute | Enforcement occurs before delegation | Protect every sensitive execution path |
 | Audit callback is configured but unavailable | Fail closed on callback failure | Operate a durable, secured audit backend |
+| A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |
 
 ## Out of scope
 
