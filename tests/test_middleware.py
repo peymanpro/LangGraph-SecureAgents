@@ -342,7 +342,6 @@ def test_mutating_scope_resolver_fails_closed_without_changing_tool_args(
     assert handler_calls == []
 
 
-
 def test_middleware_rejects_invalid_configuration() -> None:
     valid_options: dict[str, Any] = {
         "policy": PolicyEngine(),
@@ -368,6 +367,7 @@ def test_middleware_rejects_malformed_tool_call_requests() -> None:
         PolicyEngine(),
         principal_resolver=lambda context: Principal("alice"),
     )
+
     def handler(request: Any) -> ToolMessage:
         return ToolMessage(content="should not run", tool_call_id="call-1")
 
