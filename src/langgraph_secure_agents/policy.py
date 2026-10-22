@@ -51,9 +51,7 @@ class PolicyEngine:
             )
 
         approval_rule_ids = tuple(
-            rule.rule_id
-            for rule in matching_rules
-            if rule.effect is Effect.REQUIRE_APPROVAL
+            rule.rule_id for rule in matching_rules if rule.effect is Effect.REQUIRE_APPROVAL
         )
         if approval_rule_ids:
             return Decision(
