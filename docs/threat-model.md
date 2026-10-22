@@ -61,7 +61,8 @@ When an audit callback is configured, callback failure stops protected execution
 | A denied tool call would otherwise execute | Enforcement occurs before delegation | Protect every sensitive execution path |
 | Audit callback is configured but unavailable | Fail closed on callback failure | Operate a durable, secured audit backend |
 | A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |
-| An approval response is replayed for changed arguments or changed rule definitions | Bind the fingerprint to canonical JSON and exact matched rule definitions | Authenticate reviewers and protect the resume endpoint |\n| An approval is reused for an identical side-effecting operation | Fingerprint binds request contents but is not a one-time token | Require unique operation IDs and durable one-time approval consumption |
+| An approval response is replayed for changed arguments or changed rule definitions | Bind the fingerprint to canonical JSON and exact matched rule definitions | Authenticate reviewers and protect the resume endpoint |
+| An approval is reused for an identical side-effecting operation | Fingerprint binds request contents but is not a one-time token | Require unique operation IDs and durable one-time approval consumption |
 
 ## Out of scope
 
