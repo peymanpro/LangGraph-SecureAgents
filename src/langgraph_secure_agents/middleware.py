@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -12,13 +13,34 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
 from ._resolver_safety import call_resolver_without_mutation
-from .models import AccessRequest, Decision, DecisionReason, Principal
+from .models import AccessRequest, Decision, DecisionReason, PolicyRule, Principal
 from .policy import PolicyEngine
 
 PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
 ResourceResolver = Callable[[str, Mapping[str, Any]], str]
 AuditCallback = Callable[[AccessRequest, Decision], None]
+
+
+def _canonical_json_value(value: Any) -> Any:
+    """Normalize supported values to unambiguous, standards-compliant JSON data."""
+
+    if value is None or type(value) in (str, bool, int):
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("approval fingerprints cannot contain non-finite numbers")
+        return value
+    if isinstance(value, Mapping):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ValueError("approval fingerprints require string keys in JSON objects")
+            normalized[key] = _canonical_json_value(item)
+        return normalized
+    if isinstance(value, (list, tuple)):
+        return [_canonical_json_value(item) for item in value]
+    raise ValueError("approval fingerprints can only contain JSON-compatible values")
 
 
 def _approval_fingerprint(
@@ -28,8 +50,9 @@ def _approval_fingerprint(
     tool_call_id: str,
     access_request: AccessRequest,
     matched_rule_ids: tuple[str, ...],
+    matched_policy_rules: tuple[PolicyRule, ...],
 ) -> str:
-    """Bind a resumed approval to the exact identity, request, arguments, and rules."""
+    """Bind approval to identity, request data, and the exact matched rule definitions."""
 
     payload = {
         "tool_name": tool_name,
@@ -40,15 +63,28 @@ def _approval_fingerprint(
         "action": access_request.action,
         "resource": access_request.resource,
         "matched_rule_ids": list(matched_rule_ids),
+        "matched_policy_rules": [
+            {
+                "rule_id": rule.rule_id,
+                "effect": rule.effect.value,
+                "actions": sorted(rule.actions),
+                "resources": sorted(rule.resources),
+                "principal_ids": sorted(rule.principal_ids),
+                "roles": sorted(rule.roles),
+            }
+            for rule in matched_policy_rules
+        ],
     }
     try:
+        canonical_payload = _canonical_json_value(payload)
         serialized = json.dumps(
-            payload,
+            canonical_payload,
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),
+            allow_nan=False,
         )
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, RecursionError) as exc:
         raise ValueError("approval-required tool arguments must be JSON-serializable") from exc
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -138,12 +174,19 @@ def create_authorization_middleware(
             if not isinstance(tool_call_id, str) or not tool_call_id:
                 raise ValueError("approval-required tool calls must include a tool-call id")
 
+            matched_policy_rules = tuple(
+                rule for rule in policy.rules if rule.rule_id in decision.matched_rule_ids
+            )
+            if tuple(rule.rule_id for rule in matched_policy_rules) != decision.matched_rule_ids:
+                raise RuntimeError("policy decision refers to an unknown policy rule")
+
             fingerprint = _approval_fingerprint(
                 tool_name=tool_name,
                 tool_args=tool_args,
                 tool_call_id=tool_call_id,
                 access_request=access_request,
                 matched_rule_ids=decision.matched_rule_ids,
+                matched_policy_rules=matched_policy_rules,
             )
             approval = interrupt(
                 {
