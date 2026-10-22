@@ -71,15 +71,15 @@ def test_matching_deny_overrides_matching_allow() -> None:
 
 
 @pytest.mark.parametrize(
-    ("actions", "resources"),
+    ("actions", "resources", "action", "resource"),
     [
-        (frozenset({"*"}), frozenset({"reports"})),
-        (frozenset({"read"}), frozenset({"*"})),
-        (frozenset({"*"}), frozenset({"*"})),
+        (frozenset({"*"}), frozenset({"reports"}), "delete", "reports"),
+        (frozenset({"read"}), frozenset({"*"}), "read", "payroll"),
+        (frozenset({"*"}), frozenset({"*"}), "delete", "unlisted-resource"),
     ],
 )
 def test_standalone_wildcards_match_as_documented(
-    actions: frozenset[str], resources: frozenset[str]
+    actions: frozenset[str], resources: frozenset[str], action: str, resource: str
 ) -> None:
     engine = PolicyEngine(
         [
@@ -94,7 +94,9 @@ def test_standalone_wildcards_match_as_documented(
         ]
     )
 
-    decision = engine.evaluate(request(principal_id="bob", roles=frozenset(), action="delete"))
+    decision = engine.evaluate(
+        request(principal_id="bob", roles=frozenset(), action=action, resource=resource)
+    )
 
     assert decision.allowed
 
