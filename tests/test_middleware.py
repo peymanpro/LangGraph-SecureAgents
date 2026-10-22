@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from collections.abc import Mapping
 from typing import Any
 
 import pytest
@@ -308,3 +309,32 @@ def test_approval_fingerprint_binds_tool_arguments(
     second_fingerprint = received[-1]["request_fingerprint"]
 
     assert first_fingerprint != second_fingerprint
+
+
+
+@pytest.mark.parametrize("mutating_resolver", ["action", "resource"])
+def test_mutating_scope_resolver_fails_closed_without_changing_tool_args(
+    mutating_resolver: str,
+) -> None:
+    tool_args = {"employee_id": "employee-8"}
+    handler_calls: list[bool] = []
+
+    def mutate_and_resolve(tool_name: str, args: Mapping[str, Any]) -> str:
+        args["employee_id"] = "employee-7"  # type: ignore[index]
+        return "read" if mutating_resolver == "action" else "payroll:employee-7"
+
+    middleware = create_authorization_middleware(
+        PolicyEngine(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        action_resolver=mutate_and_resolve if mutating_resolver == "action" else None,
+        resource_resolver=mutate_and_resolve if mutating_resolver == "resource" else None,
+    )
+
+    with pytest.raises(ValueError, match="must not mutate"):
+        middleware.wrap_tool_call(
+            middleware_request(args=tool_args, context={"user_id": "alice"}),
+            lambda request: handler_calls.append(True),
+        )
+
+    assert tool_args == {"employee_id": "employee-8"}
+    assert handler_calls == []
