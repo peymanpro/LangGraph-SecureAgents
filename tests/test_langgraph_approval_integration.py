@@ -7,6 +7,7 @@ import pytest
 from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.runtime import Runtime
 from langgraph.types import Command
 
 from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
@@ -31,6 +32,7 @@ def test_checkpointed_graph_pauses_before_tool_and_resumes_with_bound_approval(
 ) -> None:
     handler_calls: list[str] = []
     audit_reasons: list[str] = []
+    execution_observations: list[tuple[str | None, ...]] = []
     call_id = "approval-integration-call"
 
     policy = PolicyEngine(
@@ -54,14 +56,27 @@ def test_checkpointed_graph_pauses_before_tool_and_resumes_with_bound_approval(
         handler_calls.append(call_id)
         return ToolMessage(content="Payroll record returned", tool_call_id=call_id)
 
-    def protected_tool_node(state: ApprovalGraphState) -> dict[str, str]:
+    def protected_tool_node(
+        state: ApprovalGraphState,
+        runtime: Runtime,
+    ) -> dict[str, str]:
+        info = getattr(runtime, "execution_info", None)
+        execution_observations.append(
+            (
+                getattr(info, "thread_id", None),
+                getattr(info, "checkpoint_id", None),
+                getattr(info, "checkpoint_ns", None),
+                getattr(info, "task_id", None),
+                getattr(info, "run_id", None),
+            )
+        )
         request = SimpleNamespace(
             tool_call={
                 "name": "read_payroll",
                 "args": {"employee_id": "employee-7"},
                 "id": call_id,
             },
-            runtime=SimpleNamespace(context={"user_id": "alice"}),
+            runtime=runtime,
             state={},
             tool=None,
         )
@@ -105,3 +120,10 @@ def test_checkpointed_graph_pauses_before_tool_and_resumes_with_bound_approval(
     assert resumed["result"] == expected_result
     assert audit_reasons == [expected_audit_reason]
     assert handler_calls == ([call_id] if approved else [])
+    assert len(execution_observations) == 2
+    first_execution, resumed_execution = execution_observations
+    assert first_execution[0] is not None
+    assert first_execution[0] == resumed_execution[0]  # thread_id
+    assert first_execution[1] == resumed_execution[1]  # checkpoint_id
+    assert first_execution[2] == resumed_execution[2]  # checkpoint namespace
+    assert first_execution[3] == resumed_execution[3]  # task ID
