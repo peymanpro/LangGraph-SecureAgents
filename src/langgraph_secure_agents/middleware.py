@@ -11,6 +11,7 @@ from langchain.agents.middleware import wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
+from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, Principal
 from .policy import PolicyEngine
 
@@ -91,21 +92,6 @@ def create_authorization_middleware(
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
 
-    def default_action_resolver(
-        tool_name: str,
-        tool_args: Mapping[str, Any],
-    ) -> str:
-        return "execute"
-
-    def default_resource_resolver(
-        tool_name: str,
-        tool_args: Mapping[str, Any],
-    ) -> str:
-        return tool_name
-
-    resolve_action = action_resolver or default_action_resolver
-    resolve_resource = resource_resolver or default_resource_resolver
-
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
         tool_call = getattr(request, "tool_call", None)
@@ -127,10 +113,20 @@ def create_authorization_middleware(
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
 
+        action = (
+            "execute"
+            if action_resolver is None
+            else call_resolver_without_mutation(action_resolver, tool_name, tool_args)
+        )
+        resource = (
+            tool_name
+            if resource_resolver is None
+            else call_resolver_without_mutation(resource_resolver, tool_name, tool_args)
+        )
         access_request = AccessRequest(
             principal=principal,
-            action=resolve_action(tool_name, tool_args),
-            resource=resolve_resource(tool_name, tool_args),
+            action=action,
+            resource=resource,
         )
         decision = policy.evaluate(access_request)
 
