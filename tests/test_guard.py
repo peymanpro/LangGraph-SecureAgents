@@ -209,7 +209,12 @@ def test_protect_callable_rejects_invalid_configuration() -> None:
         (object(), {}, TypeError, "function must be callable"),
         (operation, {"policy": object()}, TypeError, "PolicyEngine instance"),
         (operation, {"principal_resolver": None}, TypeError, "principal_resolver must be callable"),
-        (operation, {"resource_resolver": object()}, TypeError, "resource_resolver must be callable"),
+        (
+            operation,
+            {"resource_resolver": object()},
+            TypeError,
+            "resource_resolver must be callable",
+        ),
         (operation, {"audit_callback": object()}, TypeError, "audit_callback must be callable"),
         (operation, {"action": ""}, ValueError, "concrete action"),
         (operation, {"action": "*"}, ValueError, "concrete action"),
