@@ -178,7 +178,6 @@ def test_principal_resolver_must_return_a_principal() -> None:
         )
 
 
-
 def approval_rule() -> PolicyRule:
     return PolicyRule(
         rule_id="requires-human-approval",
