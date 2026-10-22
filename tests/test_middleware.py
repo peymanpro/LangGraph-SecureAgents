@@ -550,7 +550,6 @@ def test_approval_fingerprint_rejects_cyclic_arguments() -> None:
         )
 
 
-
 def test_approval_validator_consumes_identical_request_only_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
