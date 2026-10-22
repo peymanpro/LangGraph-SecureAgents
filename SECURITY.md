@@ -18,7 +18,7 @@ When reporting, include the affected commit or version, a concise impact descrip
 - Authorization context must not be copied blindly from user-controlled request fields or LLM-generated output.
 - Protected tools must enforce authorization against the same resource they actually access; configure resource resolvers carefully.
 - Downstream services and data stores should continue to enforce their own access controls.
-- The library does not provide authentication, tenant isolation, rate limiting, prompt-injection prevention, secret management, or a human reviewer service. Its optional approval interrupt pauses execution, but the host application must authenticate reviewers and secure the resume endpoint. The request fingerprint is deterministic and does not prevent replay for an identical request; use unique per-operation IDs and durable one-time approval consumption for side-effecting tools.
+- The library does not provide authentication, tenant isolation, rate limiting, prompt-injection prevention, secret management, or a human reviewer service. Its optional approval interrupt binds fingerprints to LangGraph checkpoint execution scope and fails closed if the required metadata/checkpointer is unavailable. The host application must authenticate reviewers, authorize access to the exact paused run, secure the resume endpoint, use unique per-operation IDs, and durably consume each approval once for side-effecting tools; the fingerprint alone is not a reviewer credential or a substitute for one-time consumption.
 - Security behavior should be verified against the exact version and policy configuration being deployed.
 
 Do not use this experimental project as the sole security boundary for production or sensitive data.
