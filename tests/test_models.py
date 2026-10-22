@@ -196,3 +196,22 @@ def test_decision_rejects_invalid_or_conflicting_state(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         Decision(**kwargs)  # type: ignore[arg-type]
+
+
+
+def test_decision_requires_approval_flag_must_be_boolean() -> None:
+    with pytest.raises(ValueError, match="requires_approval must be a boolean"):
+        Decision(
+            allowed=False,
+            reason="default_deny",
+            requires_approval="yes",  # type: ignore[arg-type]
+        )
+
+
+def test_decision_rejects_non_iterable_rule_ids() -> None:
+    with pytest.raises(ValueError, match="matched_rule_ids must be an iterable"):
+        Decision(
+            allowed=False,
+            reason="explicit_deny",
+            matched_rule_ids=42,  # type: ignore[arg-type]
+        )
