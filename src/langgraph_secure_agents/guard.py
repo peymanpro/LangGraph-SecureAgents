@@ -21,9 +21,7 @@ class AuthorizationDenied(PermissionError):
     def __init__(self, request: AccessRequest, decision: Decision) -> None:
         self.request = request
         self.decision = decision
-        super().__init__(
-            f"Access denied for action {request.action!r} ({decision.reason})."
-        )
+        super().__init__(f"Access denied for action {request.action!r} ({decision.reason}).")
 
 
 def protect_callable(
