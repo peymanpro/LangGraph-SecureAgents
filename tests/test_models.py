@@ -216,7 +216,6 @@ def test_decision_rejects_non_iterable_rule_ids() -> None:
         )
 
 
-
 def test_decision_rejects_unknown_reason() -> None:
     with pytest.raises(ValueError, match="known DecisionReason"):
         Decision(allowed=False, reason="unknown_reason")  # type: ignore[arg-type]
@@ -234,8 +233,12 @@ def test_decision_rejects_unknown_reason() -> None:
             "requires matched_rule_ids",
         ),
         (
-            {"allowed": False, "reason": "approval_required", "matched_rule_ids": (),
-             "requires_approval": True},
+            {
+                "allowed": False,
+                "reason": "approval_required",
+                "matched_rule_ids": (),
+                "requires_approval": True,
+            },
             "requires matched_rule_ids",
         ),
         (
