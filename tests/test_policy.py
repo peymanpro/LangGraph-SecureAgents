@@ -141,3 +141,21 @@ def test_duplicate_rule_ids_are_rejected() -> None:
 def test_non_policy_rule_entries_are_rejected() -> None:
     with pytest.raises(TypeError, match="PolicyRule"):
         PolicyEngine(["not-a-policy-rule"])  # type: ignore[list-item]
+
+
+def test_deny_overrides_allow_regardless_of_rule_order() -> None:
+    allow = rule("allow-analysts", Effect.ALLOW)
+    deny = rule(
+        "deny-alice",
+        Effect.DENY,
+        principal_ids=frozenset({"alice"}),
+        roles=frozenset(),
+    )
+
+    allow_then_deny = PolicyEngine([allow, deny]).evaluate(request())
+    deny_then_allow = PolicyEngine([deny, allow]).evaluate(request())
+
+    assert not allow_then_deny.allowed
+    assert not deny_then_allow.allowed
+    assert allow_then_deny.reason == "explicit_deny"
+    assert deny_then_allow.reason == "explicit_deny"
