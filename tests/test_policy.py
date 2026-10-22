@@ -215,3 +215,17 @@ def test_approval_requirement_overrides_matching_allow_rule() -> None:
     assert not decision.allowed
     assert decision.requires_approval
     assert decision.reason == "approval_required"
+
+
+
+def test_rules_property_returns_immutable_tuple() -> None:
+    rules = (rule("one", Effect.ALLOW),)
+    engine = PolicyEngine(rules)
+
+    assert engine.rules == rules
+    assert isinstance(engine.rules, tuple)
+
+
+def test_evaluate_rejects_non_access_request() -> None:
+    with pytest.raises(TypeError, match="AccessRequest instance"):
+        PolicyEngine().evaluate("not-an-access-request")  # type: ignore[arg-type]
