@@ -105,6 +105,6 @@ jobs:
               PolicyEngine(),
               lambda context: Principal("smoke-user"),
           )
-          assert callable(middleware)
+          assert callable(middleware.wrap_tool_call)
           print("Optional middleware extra smoke test passed.")
           PY
