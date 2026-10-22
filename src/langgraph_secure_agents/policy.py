@@ -8,22 +8,22 @@ from .models import AccessRequest, Decision, Effect, PolicyRule
 
 
 class PolicyEngine:
-    """Evaluate authorization requests without involving an LLM."""
-    
+    """Evaluate authorization requests without involving an LLM.
+
+    A matching DENY rule always overrides every other effect. Otherwise a
+    matching REQUIRE_APPROVAL rule takes precedence over ALLOW and returns a
+    non-allowing decision that an approval-aware integration may handle.
+    Requests not covered by an allow or approval rule are denied by default.
+
+    Rules are immutable after construction. Create a new engine to change policy.
+    """
+
     __slots__ = ("_rules",)
 
     def __setattr__(self, name: str, value: object) -> None:
         if name == "_rules" and hasattr(self, "_rules"):
             raise AttributeError("PolicyEngine rules are immutable after construction")
         object.__setattr__(self, name, value)
-
-    #
-
-    A matching DENY rule always overrides every other effect. Otherwise a
-    matching REQUIRE_APPROVAL rule takes precedence over ALLOW and returns a
-    non-allowing decision that an approval-aware integration may handle.
-    Requests not covered by an allow or approval rule are denied by default.
-    """
 
     def __init__(self, rules: Iterable[PolicyRule] = ()) -> None:
         materialized_rules = tuple(rules)
