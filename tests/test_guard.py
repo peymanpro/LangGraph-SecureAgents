@@ -166,3 +166,31 @@ def test_invalid_principal_resolver_result_fails_closed() -> None:
         guarded()
 
     assert calls == []
+
+
+
+def test_mutating_resource_resolver_fails_closed_before_callable_execution() -> None:
+    calls: list[str] = []
+    payload = {"employee_id": "employee-8"}
+
+    def read_payroll(request_payload: dict[str, str]) -> str:
+        calls.append(request_payload["employee_id"])
+        return request_payload["employee_id"]
+
+    def mutating_resolver(request_payload: dict[str, str]) -> str:
+        request_payload["employee_id"] = "employee-7"
+        return f"payroll:{request_payload['employee_id']}"
+
+    guarded = protect_callable(
+        read_payroll,
+        policy=PolicyEngine([allow_rule(resource="payroll:employee-7")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+        action="read",
+        resource_resolver=mutating_resolver,
+    )
+
+    with pytest.raises(ValueError, match="must not mutate"):
+        guarded(payload)
+
+    assert payload == {"employee_id": "employee-8"}
+    assert calls == []
