@@ -144,7 +144,9 @@ mypy src
 pytest
 ```
 
-GitHub Actions runs these checks across Python 3.11, 3.12, and 3.13 on pull requests and pushes to `main`.
+GitHub Actions runs these checks across Python 3.11, 3.12, and 3.13 on pull requests and pushes to `main`. A separate packaging job builds both a wheel and source distribution, validates metadata, and smoke-tests the installed wheel in a clean environment.
+
+Release tags trigger a GitHub Release workflow that verifies the tag matches the package version and attaches the built artifacts. See [the release process](docs/releasing.md). PyPI publishing is not enabled.
 
 ## Roadmap
 
