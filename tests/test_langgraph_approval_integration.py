@@ -46,9 +46,7 @@ def test_checkpointed_graph_pauses_before_tool_and_resumes_with_bound_approval(
     )
     middleware = create_authorization_middleware(
         policy,
-        principal_resolver=lambda context: Principal(
-            "alice", roles=frozenset({"analyst"})
-        ),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
         audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
     )
 
