@@ -441,7 +441,6 @@ def test_approval_with_non_json_arguments_fails_closed() -> None:
         )
 
 
-
 def test_approval_fingerprint_binds_the_matched_policy_definition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
