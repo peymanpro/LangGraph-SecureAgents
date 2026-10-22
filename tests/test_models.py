@@ -77,3 +77,68 @@ def test_selector_collection_cannot_be_a_plain_string() -> None:
             resources={"reports"},
             roles={"analyst"},
         )
+
+
+
+def test_blank_principal_id_is_rejected() -> None:
+    with pytest.raises(ValueError, match="principal_id must be a non-empty string"):
+        Principal("   ")
+
+
+def test_non_iterable_roles_are_rejected() -> None:
+    with pytest.raises(ValueError, match="roles must be an iterable"):
+        Principal("alice", roles=42)  # type: ignore[arg-type]
+
+
+def test_non_string_role_is_rejected() -> None:
+    with pytest.raises(ValueError, match="roles must be a non-empty string"):
+        Principal("alice", roles={1})  # type: ignore[arg-type]
+
+
+def test_access_request_requires_a_principal_instance() -> None:
+    with pytest.raises(ValueError, match="Principal instance"):
+        AccessRequest(principal="alice", action="read", resource="reports")  # type: ignore[arg-type]
+
+
+def test_policy_rule_rejects_unknown_effect() -> None:
+    with pytest.raises(ValueError, match="effect must be"):
+        PolicyRule(
+            rule_id="invalid-effect",
+            effect="maybe",  # type: ignore[arg-type]
+            actions={"read"},
+            resources={"reports"},
+            roles={"analyst"},
+        )
+
+
+def test_policy_rule_rejects_empty_action_selectors() -> None:
+    with pytest.raises(ValueError, match="actions must contain at least one value"):
+        PolicyRule(
+            rule_id="empty-actions",
+            effect=Effect.ALLOW,
+            actions=frozenset(),
+            resources={"reports"},
+            roles={"analyst"},
+        )
+
+
+def test_partial_wildcard_patterns_are_rejected() -> None:
+    with pytest.raises(ValueError, match="standalone"):
+        PolicyRule(
+            rule_id="partial-action-wildcard",
+            effect=Effect.ALLOW,
+            actions={"read*"},
+            resources={"reports"},
+            roles={"analyst"},
+        )
+
+
+def test_principal_wildcard_cannot_be_mixed_with_specific_identities() -> None:
+    with pytest.raises(ValueError, match="cannot combine"):
+        PolicyRule(
+            rule_id="mixed-principal-wildcard",
+            effect=Effect.ALLOW,
+            actions={"read"},
+            resources={"reports"},
+            principal_ids={"*", "alice"},
+        )
