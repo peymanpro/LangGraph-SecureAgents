@@ -128,12 +128,24 @@ class PolicyRule:
         object.__setattr__(self, "roles", roles)
 
 
+class DecisionReason(StrEnum):
+    """Stable machine-readable reasons emitted by the policy layer."""
+
+    EXPLICIT_ALLOW = "explicit_allow"
+    EXPLICIT_DENY = "explicit_deny"
+    DEFAULT_DENY = "default_deny"
+    APPROVAL_REQUIRED = "approval_required"
+    APPROVAL_INVALID = "approval_invalid"
+    APPROVAL_DENIED = "approval_denied"
+    HUMAN_APPROVED = "human_approved"
+
+
 @dataclass(frozen=True, slots=True)
 class Decision:
     """A deterministic authorization outcome and its explainable basis."""
 
     allowed: bool
-    reason: str
+    reason: DecisionReason
     matched_rule_ids: tuple[str, ...] = ()
     requires_approval: bool = False
 
@@ -141,7 +153,12 @@ class Decision:
         if type(self.allowed) is not bool:
             raise ValueError("allowed must be a boolean")
 
-        reason = _normalized_text(self.reason, "reason")
+        normalized_reason = _normalized_text(self.reason, "reason")
+        try:
+            reason = DecisionReason(normalized_reason)
+        except ValueError as exc:
+            raise ValueError("reason must be a known DecisionReason") from exc
+
         if type(self.requires_approval) is not bool:
             raise ValueError("requires_approval must be a boolean")
 
@@ -157,23 +174,32 @@ class Decision:
         if len(set(rule_ids)) != len(rule_ids):
             raise ValueError("matched_rule_ids cannot contain duplicates")
 
-        if self.requires_approval != (reason == "approval_required"):
+        if self.requires_approval != (reason is DecisionReason.APPROVAL_REQUIRED):
             raise ValueError(
                 "requires_approval must be true exactly when reason is 'approval_required'"
             )
 
-        denied_reasons = {
-            "explicit_deny",
-            "default_deny",
-            "approval_required",
-            "approval_invalid",
-            "approval_denied",
+        allowed_reasons = {
+            DecisionReason.EXPLICIT_ALLOW,
+            DecisionReason.HUMAN_APPROVED,
         }
-        allowed_reasons = {"explicit_allow", "human_approved"}
-        if self.allowed and reason in denied_reasons:
-            raise ValueError(f"reason {reason!r} cannot describe an allowed decision")
+        if self.allowed and reason not in allowed_reasons:
+            raise ValueError(f"reason {reason.value!r} cannot describe an allowed decision")
         if not self.allowed and reason in allowed_reasons:
-            raise ValueError(f"reason {reason!r} cannot describe a denied decision")
+            raise ValueError(f"reason {reason.value!r} cannot describe a denied decision")
+
+        rule_required_reasons = {
+            DecisionReason.EXPLICIT_ALLOW,
+            DecisionReason.EXPLICIT_DENY,
+            DecisionReason.APPROVAL_REQUIRED,
+            DecisionReason.APPROVAL_INVALID,
+            DecisionReason.APPROVAL_DENIED,
+            DecisionReason.HUMAN_APPROVED,
+        }
+        if reason in rule_required_reasons and not rule_ids:
+            raise ValueError(f"reason {reason.value!r} requires matched_rule_ids")
+        if reason is DecisionReason.DEFAULT_DENY and rule_ids:
+            raise ValueError("default_deny cannot have matched_rule_ids")
 
         object.__setattr__(self, "reason", reason)
         object.__setattr__(self, "matched_rule_ids", rule_ids)
