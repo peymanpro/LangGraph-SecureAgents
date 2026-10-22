@@ -98,13 +98,13 @@ protected_lookup = protect_callable(
 )
 ```
 
-The resource resolver must describe the same resource the wrapped function actually accesses. For multi-user applications, the principal resolver must read request-scoped trusted context; do not capture one user's identity in a process-wide shared tool.
+The resource resolver must describe the same resource the wrapped function actually accesses. Resolver callbacks receive detached copies of arguments, and attempts to mutate those copies fail closed before execution. Resolvers must otherwise be trusted, side-effect-free application code. For multi-user applications, the principal resolver must read request-scoped trusted context; do not capture one user's identity in a process-wide shared tool.
 
 ## Optional agent middleware
 
 The optional module `langgraph_secure_agents.middleware` provides `create_authorization_middleware` for LangChain agents built on LangGraph. It intercepts tool calls before execution. By default, the policy action is `execute` and the resource is the tool name. Custom resolvers can map tool calls to domain-level actions and resources.
 
-The middleware receives runtime context from the agent invocation. The application must configure a principal resolver that validates this context and creates a `Principal` from trusted identity data. Denied calls return an error tool message and do not invoke the tool handler.
+The middleware receives runtime context from the agent invocation. The application must configure a principal resolver that validates this context and creates a `Principal` from trusted identity data. Custom action/resource resolvers receive detached copies of tool arguments; attempts to mutate these copies fail closed. Denied calls return an error tool message and do not invoke the tool handler.
 
 ## Human approval for sensitive actions
 
