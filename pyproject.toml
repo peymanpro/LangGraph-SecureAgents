@@ -10,13 +10,6 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 keywords = ["langgraph", "ai-agents", "authorization", "access-control", "security"]
-
-[project.urls]
-Homepage = "https://github.com/peymanpro/LangGraph-SecureAgents"
-Repository = "https://github.com/peymanpro/LangGraph-SecureAgents"
-Issues = "https://github.com/peymanpro/LangGraph-SecureAgents/issues"
-Security = "https://github.com/peymanpro/LangGraph-SecureAgents/blob/main/SECURITY.md"
-
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -27,6 +20,12 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/peymanpro/LangGraph-SecureAgents"
+Repository = "https://github.com/peymanpro/LangGraph-SecureAgents"
+Issues = "https://github.com/peymanpro/LangGraph-SecureAgents/issues"
+Security = "https://github.com/peymanpro/LangGraph-SecureAgents/blob/main/SECURITY.md"
 
 [project.optional-dependencies]
 langgraph = ["langgraph>=1.0,<2.0"]
