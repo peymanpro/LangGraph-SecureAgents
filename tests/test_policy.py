@@ -159,3 +159,59 @@ def test_deny_overrides_allow_regardless_of_rule_order() -> None:
     assert not deny_then_allow.allowed
     assert allow_then_deny.reason == "explicit_deny"
     assert deny_then_allow.reason == "explicit_deny"
+
+
+def test_approval_required_policy_is_not_a_normal_allow() -> None:
+    decision = PolicyEngine(
+        [
+            rule(
+                "finance-approval",
+                Effect.REQUIRE_APPROVAL,
+                principal_ids=frozenset({"alice"}),
+                roles=frozenset(),
+            )
+        ]
+    ).evaluate(request())
+
+    assert not decision.allowed
+    assert decision.requires_approval
+    assert decision.reason == "approval_required"
+    assert decision.matched_rule_ids == ("finance-approval",)
+
+
+def test_explicit_deny_overrides_approval_requirement() -> None:
+    approval = rule(
+        "requires-approval",
+        Effect.REQUIRE_APPROVAL,
+        principal_ids=frozenset({"alice"}),
+        roles=frozenset(),
+    )
+    deny = rule(
+        "explicit-deny",
+        Effect.DENY,
+        principal_ids=frozenset({"alice"}),
+        roles=frozenset(),
+    )
+
+    decision = PolicyEngine([approval, deny]).evaluate(request())
+
+    assert not decision.allowed
+    assert not decision.requires_approval
+    assert decision.reason == "explicit_deny"
+    assert decision.matched_rule_ids == ("explicit-deny",)
+
+
+def test_approval_requirement_overrides_matching_allow_rule() -> None:
+    approval = rule(
+        "requires-approval",
+        Effect.REQUIRE_APPROVAL,
+        principal_ids=frozenset({"alice"}),
+        roles=frozenset(),
+    )
+    allow = rule("allow-analysts", Effect.ALLOW)
+
+    decision = PolicyEngine([allow, approval]).evaluate(request())
+
+    assert not decision.allowed
+    assert decision.requires_approval
+    assert decision.reason == "approval_required"
