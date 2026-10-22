@@ -17,7 +17,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 
 from langgraph_secure_agents import (
-    AccessRequest,
     AuthorizationDenied,
     Effect,
     PolicyEngine,
