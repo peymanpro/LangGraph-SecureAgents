@@ -10,8 +10,10 @@ from .models import AccessRequest, Decision, Effect, PolicyRule
 class PolicyEngine:
     """Evaluate authorization requests without involving an LLM.
 
-    A matching DENY rule always overrides matching ALLOW rules. When no rule
-    allows the request, the engine denies it by default.
+    A matching DENY rule always overrides every other effect. Otherwise a
+    matching REQUIRE_APPROVAL rule takes precedence over ALLOW and returns a
+    non-allowing decision that an approval-aware integration may handle.
+    Requests not covered by an allow or approval rule are denied by default.
     """
 
     def __init__(self, rules: Iterable[PolicyRule] = ()) -> None:
@@ -46,6 +48,19 @@ class PolicyEngine:
                 allowed=False,
                 reason="explicit_deny",
                 matched_rule_ids=denying_rule_ids,
+            )
+
+        approval_rule_ids = tuple(
+            rule.rule_id
+            for rule in matching_rules
+            if rule.effect is Effect.REQUIRE_APPROVAL
+        )
+        if approval_rule_ids:
+            return Decision(
+                allowed=False,
+                reason="approval_required",
+                matched_rule_ids=approval_rule_ids,
+                requires_approval=True,
             )
 
         allowing_rule_ids = tuple(
