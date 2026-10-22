@@ -44,6 +44,37 @@ def _canonical_json_value(value: Any) -> Any:
     raise ValueError("approval fingerprints can only contain JSON-compatible values")
 
 
+def _approval_execution_scope(runtime: Any) -> dict[str, str]:
+    """Get stable checkpoint scope for binding a human approval to one execution."""
+
+    execution_info = getattr(runtime, "execution_info", None)
+    thread_id = getattr(execution_info, "thread_id", None)
+    checkpoint_id = getattr(execution_info, "checkpoint_id", None)
+    checkpoint_ns = getattr(execution_info, "checkpoint_ns", None)
+    task_id = getattr(execution_info, "task_id", None)
+
+    if (
+        not isinstance(thread_id, str)
+        or not thread_id
+        or not isinstance(checkpoint_id, str)
+        or not checkpoint_id
+        or not isinstance(checkpoint_ns, str)
+        or not isinstance(task_id, str)
+        or not task_id
+    ):
+        raise RuntimeError(
+            "approval-required tool calls need LangGraph 1.2+ execution metadata "
+            "and an active checkpointer"
+        )
+
+    return {
+        "thread_id": thread_id,
+        "checkpoint_id": checkpoint_id,
+        "checkpoint_ns": checkpoint_ns,
+        "task_id": task_id,
+    }
+
+
 def _approval_fingerprint(
     *,
     tool_name: str,
@@ -52,10 +83,12 @@ def _approval_fingerprint(
     access_request: AccessRequest,
     matched_rule_ids: tuple[str, ...],
     matched_policy_rules: tuple[PolicyRule, ...],
+    execution_scope: Mapping[str, str],
 ) -> str:
-    """Bind approval to identity, request data, and the exact matched rule definitions."""
+    """Bind approval to one execution, request data, and matched policy definitions."""
 
     payload = {
+        "execution_scope": dict(execution_scope),
         "tool_name": tool_name,
         "tool_args": dict(tool_args),
         "tool_call_id": tool_call_id,
@@ -193,6 +226,7 @@ def create_authorization_middleware(
             if tuple(rule.rule_id for rule in matched_policy_rules) != decision.matched_rule_ids:
                 raise RuntimeError("policy decision refers to an unknown policy rule")
 
+            execution_scope = _approval_execution_scope(runtime)
             fingerprint = _approval_fingerprint(
                 tool_name=tool_name,
                 tool_args=tool_args,
@@ -200,6 +234,7 @@ def create_authorization_middleware(
                 access_request=access_request,
                 matched_rule_ids=decision.matched_rule_ids,
                 matched_policy_rules=matched_policy_rules,
+                execution_scope=execution_scope,
             )
             approval = interrupt(
                 {
@@ -212,6 +247,7 @@ def create_authorization_middleware(
                     "action": access_request.action,
                     "resource": access_request.resource,
                     "policy_rule_ids": list(decision.matched_rule_ids),
+                    "execution_scope": execution_scope,
                     "request_fingerprint": fingerprint,
                 }
             )
