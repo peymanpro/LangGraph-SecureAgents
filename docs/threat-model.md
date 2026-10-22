@@ -49,7 +49,7 @@ When an audit callback is configured, callback failure stops protected execution
 - An explicit matching deny rule overrides matching allow rules.
 - Actions and resources use exact matching, except for a standalone wildcard selector.
 - When a rule specifies both principal IDs and roles, both constraints must match.
-- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. The host application must authenticate reviewers and authorize access to the resume endpoint; a request fingerprint binds the decision to the request but is not proof of reviewer identity. Applications must not treat a normal allow decision as evidence of human approval.
+- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal, roles, tool call, canonical JSON arguments, action, resource, and exact definitions of matched policy rules so that changes across a pause invalidate the old fingerprint. The host application must still authenticate reviewers and authorize access to the resume endpoint; the fingerprint binds a response to a request but is not proof of reviewer identity. Applications must not treat a normal allow decision as evidence of human approval.
 
 ## In-scope threats
 
@@ -60,7 +60,7 @@ When an audit callback is configured, callback failure stops protected execution
 | Model output claims the caller has a role | Identity comes from a trusted resolver | Authenticate users and validate claims |
 | A denied tool call would otherwise execute | Enforcement occurs before delegation | Protect every sensitive execution path |
 | Audit callback is configured but unavailable | Fail closed on callback failure | Operate a durable, secured audit backend |
-| A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |
+| A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |\n| An approval response is replayed for changed arguments or changed rule definitions | Bind the fingerprint to canonical JSON and exact matched rule definitions | Authenticate reviewers and protect the resume endpoint |
 
 ## Out of scope
 
