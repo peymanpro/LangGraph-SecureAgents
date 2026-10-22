@@ -49,6 +49,10 @@ def protect_callable(
         raise TypeError("policy must be a PolicyEngine instance")
     if not callable(principal_resolver):
         raise TypeError("principal_resolver must be callable")
+    if resource_resolver is not None and not callable(resource_resolver):
+        raise TypeError("resource_resolver must be callable")
+    if audit_callback is not None and not callable(audit_callback):
+        raise TypeError("audit_callback must be callable")
     if not isinstance(action, str) or not action.strip() or action.strip() == "*":
         raise ValueError("action must be a non-empty concrete action")
 
@@ -56,9 +60,10 @@ def protect_callable(
     if resource_resolver is None:
         resource_name = getattr(function, "__name__", type(function).__name__)
 
-        def resolve_resource(*args: P.args, **kwargs: P.kwargs) -> str:
+        def default_resource_resolver(*args: P.args, **kwargs: P.kwargs) -> str:
             return resource_name
 
+        resolve_resource = default_resource_resolver
     else:
         resolve_resource = resource_resolver
 
