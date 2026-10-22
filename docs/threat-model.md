@@ -45,7 +45,7 @@ When an audit callback is configured, callback failure stops protected execution
 - An explicit matching deny rule overrides matching allow rules.
 - Actions and resources use exact matching, except for a standalone wildcard selector.
 - When a rule specifies both principal IDs and roles, both constraints must match.
-- Human approval is not currently implemented as a built-in capability. Applications must not interpret a normal allow decision as evidence of human approval.
+- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. The host application must authenticate reviewers and authorize access to the resume endpoint; a request fingerprint binds the decision to the request but is not proof of reviewer identity. Applications must not treat a normal allow decision as evidence of human approval.
 
 ## In-scope threats
 
@@ -65,7 +65,7 @@ This library does not itself provide:
 - Database-level security, tenant isolation, or protection from incorrectly implemented resource resolvers.
 - Prevention of prompt injection, model hallucinations, data exfiltration through tools that are not guarded, or unsafe model-generated code.
 - Rate limiting, secrets management, encryption, network security, or denial-of-service protection.
-- A human approval service or proof that an approval came from an authorized reviewer.
+- A human reviewer service or proof that an approval came from an authorized reviewer; the host application must supply these.
 - Formal verification, certification, or an independent security audit.
 
 ## Deployment checklist
