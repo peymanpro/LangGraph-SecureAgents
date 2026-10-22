@@ -106,6 +106,35 @@ The optional module `langgraph_secure_agents.middleware` provides `create_author
 
 The middleware receives runtime context from the agent invocation. The application must configure a principal resolver that validates this context and creates a `Principal` from trusted identity data. Denied calls return an error tool message and do not invoke the tool handler.
 
+## Human approval for sensitive actions
+
+A policy can explicitly require approval instead of granting access immediately:
+
+```python
+approval_policy = PolicyEngine(
+    [
+        PolicyRule(
+            rule_id="approval-required-payroll-read",
+            effect=Effect.REQUIRE_APPROVAL,
+            actions=frozenset({"read"}),
+            resources=frozenset({"payroll:employee-7"}),
+            roles=frozenset({"hr"}),
+        )
+    ]
+)
+```
+
+When this policy is used with the optional agent middleware, LangGraph pauses at an interrupt before the tool handler executes. The paused payload describes the principal, action, resource, policy rule, tool, and a request fingerprint. After a reviewer makes a decision, the host application resumes the same checkpoint/thread with a value shaped like:
+
+```python
+{
+    "approved": True,
+    "request_fingerprint": fingerprint_from_interrupt_payload,
+}
+```
+
+The middleware rejects missing, malformed, or mismatched approval responses. The fingerprint binds the response to the current principal, roles, tool call, arguments, action, resource, and matching policy rules. **It is not proof of reviewer identity or permission.** The host application must authenticate the reviewer, authorize who can resume the paused run, protect the resume endpoint, and use a checkpointer. An explicit matching deny rule always takes precedence over approval.
+
 ## Validation
 
 ```bash
@@ -126,7 +155,7 @@ GitHub Actions runs these checks across Python 3.11, 3.12, and 3.13 on pull requ
 - [x] Optional agent tool-call middleware
 - [x] Model-free LangGraph workflow example with mock payroll data
 - [ ] Example conversational agent using a model provider
-- [ ] Human-approval integration for selected sensitive actions
+- [x] Human-approval interrupt integration for selected sensitive actions
 - [x] Initial threat model and security reporting guidance
 - [ ] API review and release-readiness checks
 
