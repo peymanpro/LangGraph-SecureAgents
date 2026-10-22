@@ -7,7 +7,14 @@ from typing import Any
 import pytest
 from langchain_core.messages import ToolMessage
 
-from langgraph_secure_agents import Decision, DecisionReason, Effect, PolicyEngine, PolicyRule, Principal
+from langgraph_secure_agents import (
+    Decision,
+    DecisionReason,
+    Effect,
+    PolicyEngine,
+    PolicyRule,
+    Principal,
+)
 from langgraph_secure_agents import middleware as middleware_module
 from langgraph_secure_agents.middleware import create_authorization_middleware
 
