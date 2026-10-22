@@ -38,7 +38,9 @@ def protect_callable(
 
     The principal resolver must obtain identity from trusted application context,
     not from arguments controlled by an LLM. The resource resolver must identify
-    the same resource the wrapped function will actually access. If auditing is
+    the same resource the wrapped function will actually access. The resolver
+    receives detached argument copies; mutating them is rejected. Resolvers must
+    otherwise be trusted, side-effect-free application code. If auditing is
     configured and the callback fails, execution fails closed.
     """
 
