@@ -368,7 +368,8 @@ def test_middleware_rejects_malformed_tool_call_requests() -> None:
         PolicyEngine(),
         principal_resolver=lambda context: Principal("alice"),
     )
-    handler = lambda request: ToolMessage(content="should not run", tool_call_id="call-1")
+    def handler(request: Any) -> ToolMessage:
+        return ToolMessage(content="should not run", tool_call_id="call-1")
 
     with pytest.raises(TypeError, match="tool_call mapping"):
         middleware.wrap_tool_call(SimpleNamespace(runtime=SimpleNamespace(context=None)), handler)
