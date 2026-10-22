@@ -11,7 +11,7 @@ user's natural-language request or LLM-generated tool arguments.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
@@ -100,17 +100,15 @@ def build_payroll_workflow():
 
 
 def run_request(
-    graph: object,
+    graph: Any,
     *,
     employee_id: str,
     context: PayrollContext,
 ) -> PayrollState:
     """Run the graph with explicit trusted context and a requested resource."""
 
-    # Compiled LangGraph objects expose invoke(); a local helper keeps the
-    # example's request boundary visible in one place.
-    invoke = getattr(graph, "invoke")
-    return invoke(
+    # Keep the request boundary visible in one place.
+    return graph.invoke(
         {"employee_id": employee_id, "report": None, "error": None},
         context=context,
     )
