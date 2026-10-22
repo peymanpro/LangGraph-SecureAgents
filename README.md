@@ -51,6 +51,7 @@ It demonstrates an allowed HR request, a denied request for an unapproved resour
 ```python
 from langgraph_secure_agents import (
     AccessRequest,
+    DecisionReason,
     Effect,
     PolicyEngine,
     PolicyRule,
@@ -79,7 +80,14 @@ decision = policy.evaluate(
 )
 
 assert decision.allowed
+assert decision.reason is DecisionReason.EXPLICIT_ALLOW
 ```
+
+### Decision outcomes and policy updates
+
+`Decision.reason` is a public `DecisionReason` enum with stable machine-readable values: `explicit_allow`, `explicit_deny`, `default_deny`, `approval_required`, `approval_invalid`, `approval_denied`, and `human_approved`. Use the enum constants in application code rather than comparing free-form strings. `matched_rule_ids` identifies the policy rules responsible for a rule-based outcome; a default-deny decision has no matched rule IDs. `requires_approval` is true only for `approval_required`.
+
+A `PolicyEngine`'s rules cannot be replaced after construction. To deploy a policy change, construct and validate a new engine, then switch the application to it using the application's own configuration/reload mechanism. Do not mutate private state on a live engine. This matters for approval pauses: the request fingerprint binds approval to the matched rule definitions, so a resumed decision must still refer to the policy that produced the interrupt.
 
 ## Protect a Python callable
 
