@@ -12,7 +12,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
 from ._resolver_safety import call_resolver_without_mutation
-from .models import AccessRequest, Decision, Principal
+from .models import AccessRequest, Decision, DecisionReason, Principal
 from .policy import PolicyEngine
 
 PrincipalResolver = Callable[[object], Principal]
@@ -167,7 +167,7 @@ def create_authorization_middleware(
             ):
                 outcome = Decision(
                     allowed=False,
-                    reason="approval_invalid",
+                    reason=DecisionReason.APPROVAL_INVALID,
                     matched_rule_ids=decision.matched_rule_ids,
                 )
                 if audit_callback is not None:
@@ -181,7 +181,7 @@ def create_authorization_middleware(
             if not approval["approved"]:
                 outcome = Decision(
                     allowed=False,
-                    reason="approval_denied",
+                    reason=DecisionReason.APPROVAL_DENIED,
                     matched_rule_ids=decision.matched_rule_ids,
                 )
                 if audit_callback is not None:
@@ -194,7 +194,7 @@ def create_authorization_middleware(
 
             outcome = Decision(
                 allowed=True,
-                reason="human_approved",
+                reason=DecisionReason.HUMAN_APPROVED,
                 matched_rule_ids=decision.matched_rule_ids,
             )
             if audit_callback is not None:
