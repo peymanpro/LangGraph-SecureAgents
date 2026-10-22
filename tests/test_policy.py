@@ -230,7 +230,6 @@ def test_evaluate_rejects_non_access_request() -> None:
         PolicyEngine().evaluate("not-an-access-request")  # type: ignore[arg-type]
 
 
-
 def test_policy_rules_cannot_be_replaced_after_construction() -> None:
     engine = PolicyEngine([rule("allow", Effect.ALLOW)])
 
