@@ -198,7 +198,6 @@ def test_decision_rejects_invalid_or_conflicting_state(
         Decision(**kwargs)  # type: ignore[arg-type]
 
 
-
 def test_decision_requires_approval_flag_must_be_boolean() -> None:
     with pytest.raises(ValueError, match="requires_approval must be a boolean"):
         Decision(
