@@ -10,7 +10,11 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def call_resolver_without_mutation(resolver: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
+def call_resolver_without_mutation(
+    resolver: Callable[P, R],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> R:
     """Call a trusted resolver on detached inputs and reject input mutation.
 
     Resource/action resolvers participate in the authorization decision. Letting
