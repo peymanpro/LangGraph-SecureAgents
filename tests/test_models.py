@@ -1,6 +1,6 @@
 import pytest
 
-from langgraph_secure_agents.models import AccessRequest, Effect, PolicyRule, Principal
+from langgraph_secure_agents.models import AccessRequest, Decision, Effect, PolicyRule, Principal
 
 
 def test_principal_normalizes_identity_and_roles() -> None:
@@ -142,3 +142,59 @@ def test_principal_wildcard_cannot_be_mixed_with_specific_identities() -> None:
             resources={"reports"},
             principal_ids={"*", "alice"},
         )
+
+
+
+def test_decision_normalizes_rule_ids_to_an_immutable_tuple() -> None:
+    rule_ids = ["deny-payroll"]
+    decision = Decision(
+        allowed=False,
+        reason="explicit_deny",
+        matched_rule_ids=rule_ids,  # type: ignore[arg-type]
+    )
+    rule_ids.append("later-change")
+
+    assert decision.matched_rule_ids == ("deny-payroll",)
+    assert isinstance(decision.matched_rule_ids, tuple)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"allowed": 1, "reason": "default_deny"}, "allowed must be a boolean"),
+        ({"allowed": False, "reason": " "}, "reason must be a non-empty string"),
+        (
+            {"allowed": False, "reason": "approval_required", "requires_approval": False},
+            "requires_approval must be true exactly",
+        ),
+        (
+            {"allowed": True, "reason": "approval_required", "requires_approval": True},
+            "cannot describe an allowed decision",
+        ),
+        (
+            {"allowed": True, "reason": "explicit_deny"},
+            "cannot describe an allowed decision",
+        ),
+        (
+            {"allowed": False, "reason": "explicit_allow"},
+            "cannot describe a denied decision",
+        ),
+        (
+            {"allowed": False, "reason": "explicit_deny", "matched_rule_ids": "deny"},
+            "collection of rule IDs",
+        ),
+        (
+            {
+                "allowed": False,
+                "reason": "explicit_deny",
+                "matched_rule_ids": ("deny", "deny"),
+            },
+            "cannot contain duplicates",
+        ),
+    ],
+)
+def test_decision_rejects_invalid_or_conflicting_state(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Decision(**kwargs)  # type: ignore[arg-type]
