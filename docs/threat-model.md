@@ -49,7 +49,7 @@ When an audit callback is configured, callback failure stops protected execution
 - An explicit matching deny rule overrides matching allow rules.
 - Actions and resources use exact matching, except for a standalone wildcard selector.
 - When a rule specifies both principal IDs and roles, both constraints must match.
-- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal, roles, tool call, canonical JSON arguments, action, resource, and exact definitions of matched policy rules so that changes across a pause invalidate the old fingerprint. The host application must still authenticate reviewers and authorize access to the resume endpoint; the fingerprint binds a response to a request but is not proof of reviewer identity. Applications must not treat a normal allow decision as evidence of human approval.
+- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal, roles, tool call, canonical JSON arguments, action, resource, and exact definitions of matched policy rules so that changes across a pause invalidate the old fingerprint. The fingerprint is deterministic: it does not authenticate a reviewer or prevent replay for a completely identical request if its tool-call ID is reused. The host application must authenticate reviewers, authorize access to the resume endpoint, ensure per-operation IDs are unique, and durably consume each approval once for side-effecting tools. Applications must not treat a normal allow decision as evidence of human approval.
 
 ## In-scope threats
 
@@ -62,6 +62,7 @@ When an audit callback is configured, callback failure stops protected execution
 | Audit callback is configured but unavailable | Fail closed on callback failure | Operate a durable, secured audit backend |
 | A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |
 | An approval response is replayed for changed arguments or changed rule definitions | Bind the fingerprint to canonical JSON and exact matched rule definitions | Authenticate reviewers and protect the resume endpoint |
+| An approval is reused for an identical side-effecting operation | Fingerprint binds request contents but is not a one-time token | Require unique operation IDs and durable one-time approval consumption |
 
 ## Out of scope
 

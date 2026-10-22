@@ -111,7 +111,9 @@ def create_authorization_middleware(
     containing both a boolean 'approved' field and the exact request_fingerprint
     shown in the interrupt payload. The host application must authenticate the
     reviewer and authorize access to the resume operation; the payload alone is
-    not proof that an authorized human approved the action.
+    not proof that an authorized human approved the action. The fingerprint is
+    deterministic, not a one-time token. For side-effecting tools, the host must
+    enforce unique per-operation IDs and durable one-time approval consumption.
 
     Custom action/resource resolvers receive detached argument copies. Mutating
     those copies raises an error before the protected tool runs. Resolvers must
