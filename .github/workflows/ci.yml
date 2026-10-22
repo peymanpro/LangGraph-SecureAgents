@@ -37,6 +37,54 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
+      - name: Validate workflow YAML and release permissions
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          import yaml
+
+          workflow_paths = (
+              Path(".github/workflows/ci.yml"),
+              Path(".github/workflows/release.yml"),
+              Path(".github/dependabot.yml"),
+          )
+          documents = {}
+          for path in workflow_paths:
+              with path.open(encoding="utf-8") as stream:
+                  document = yaml.safe_load(stream)
+              if not isinstance(document, dict):
+                  raise SystemExit(f"{path} must contain a YAML mapping")
+              documents[path.as_posix()] = document
+
+          sha_pattern = re.compile(r"^[0-9a-f]{40}$")
+          for path in workflow_paths[:2]:
+              document = documents[path.as_posix()]
+              for job_name, job in document.get("jobs", {}).items():
+                  for step in job.get("steps", []):
+                      action = step.get("uses")
+                      if action is None:
+                          continue
+                      if "@" not in action or not sha_pattern.fullmatch(action.rsplit("@", 1)[1].split()[0]):
+                          raise SystemExit(
+                              f"{path}: {job_name} uses an action not pinned to a full commit SHA: {action}"
+                          )
+
+          release = documents[".github/workflows/release.yml"]
+          release_jobs = release.get("jobs", {})
+          if release.get("permissions", {}).get("contents") != "read":
+              raise SystemExit("release workflow must default to contents: read")
+          if release_jobs.get("build", {}).get("permissions", {}).get("contents") != "read":
+              raise SystemExit("release build job must only request contents: read")
+          if release_jobs.get("publish", {}).get("permissions", {}).get("contents") != "write":
+              raise SystemExit("only the release publish job should request contents: write")
+          if release_jobs.get("publish", {}).get("needs") != "build":
+              raise SystemExit("release publish job must depend on the validated build job")
+
+          print("Workflow YAML, action SHA pins, and release job permissions validated.")
+          PY
+
       - name: Type check
         run: mypy src
 
