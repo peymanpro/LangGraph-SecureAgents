@@ -61,13 +61,6 @@ def protect_callable(
     if resource_resolver is None:
         resource_name = getattr(function, "__name__", type(function).__name__)
 
-        def default_resource_resolver(*args: P.args, **kwargs: P.kwargs) -> str:
-            return resource_name
-
-        resolve_resource = default_resource_resolver
-    else:
-        resolve_resource = resource_resolver
-
     @wraps(function)
     def guarded(*args: P.args, **kwargs: P.kwargs) -> R:
         principal = principal_resolver()
@@ -77,7 +70,7 @@ def protect_callable(
         if resource_resolver is None:
             resource = resource_name
         else:
-            resource = call_resolver_without_mutation(resolve_resource, *args, **kwargs)
+            resource = call_resolver_without_mutation(resource_resolver, *args, **kwargs)
 
         request = AccessRequest(
             principal=principal,
