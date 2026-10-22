@@ -41,7 +41,7 @@ jobs:
         run: mypy src
 
       - name: Test
-        run: pytest --cov=langgraph_secure_agents --cov-report=term-missing
+        run: pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 
   package:
     name: Build and smoke-test distributions
