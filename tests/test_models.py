@@ -79,7 +79,6 @@ def test_selector_collection_cannot_be_a_plain_string() -> None:
         )
 
 
-
 def test_blank_principal_id_is_rejected() -> None:
     with pytest.raises(ValueError, match="principal_id must be a non-empty string"):
         Principal("   ")
