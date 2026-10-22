@@ -439,3 +439,114 @@ def test_approval_with_non_json_arguments_fails_closed() -> None:
             middleware_request(args={"payload": object()}),
             lambda request: ToolMessage(content="should not run", tool_call_id="call-1"),
         )
+
+
+
+def test_approval_fingerprint_binds_the_matched_policy_definition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fingerprints: list[str] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        fingerprints.append(payload["request_fingerprint"])
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    policies = [
+        PolicyEngine([approval_rule()]),
+        PolicyEngine(
+            [
+                PolicyRule(
+                    rule_id="requires-human-approval",
+                    effect=Effect.REQUIRE_APPROVAL,
+                    actions=frozenset({"execute"}),
+                    resources=frozenset({"read_payroll"}),
+                    roles=frozenset({"analyst", "hr"}),
+                )
+            ]
+        ),
+    ]
+
+    for policy in policies:
+        middleware = create_authorization_middleware(
+            policy,
+            principal_resolver=lambda context: Principal(
+                "alice", roles=frozenset({"analyst"})
+            ),
+        )
+        response = middleware.wrap_tool_call(
+            middleware_request(args={"employee_id": "employee-7"}, tool_call_id="call-policy"),
+            lambda request: ToolMessage(content="approved", tool_call_id="call-policy"),
+        )
+        assert isinstance(response, ToolMessage)
+        assert response.content == "approved"
+
+    assert fingerprints[0] != fingerprints[1]
+
+
+def test_approval_fingerprint_accepts_standard_json_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+    args = {
+        "none": None,
+        "boolean": True,
+        "integer": 7,
+        "float": 2.5,
+        "tuple": (1, "two"),
+        "nested": {"values": [False, None, "text"]},
+    }
+
+    response = middleware.wrap_tool_call(
+        middleware_request(args=args, tool_call_id="call-json"),
+        lambda request: ToolMessage(content="approved", tool_call_id="call-json"),
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.content == "approved"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"payload": {1: "non-string-key"}},
+        {"payload": float("nan")},
+        {"payload": float("inf")},
+    ],
+)
+def test_approval_fingerprint_rejects_ambiguous_or_nonfinite_json_values(
+    monkeypatch: pytest.MonkeyPatch,
+    args: dict[str, Any],
+) -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        middleware.wrap_tool_call(
+            middleware_request(args=args, tool_call_id="call-invalid-json"),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-invalid-json"),
+        )
+
+
+def test_approval_fingerprint_rejects_cyclic_arguments() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+    cyclic_values: list[Any] = []
+    cyclic_values.append(cyclic_values)
+
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        middleware.wrap_tool_call(
+            middleware_request(args={"cycle": cyclic_values}, tool_call_id="call-cycle"),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-cycle"),
+        )
