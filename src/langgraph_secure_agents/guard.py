@@ -6,6 +6,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
+from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, Principal
 from .policy import PolicyEngine
 
@@ -37,7 +38,9 @@ def protect_callable(
 
     The principal resolver must obtain identity from trusted application context,
     not from arguments controlled by an LLM. The resource resolver must identify
-    the same resource the wrapped function will actually access. If auditing is
+    the same resource the wrapped function will actually access. The resolver
+    receives detached argument copies; mutating them is rejected. Resolvers must
+    otherwise be trusted, side-effect-free application code. If auditing is
     configured and the callback fails, execution fails closed.
     """
 
@@ -71,10 +74,15 @@ def protect_callable(
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
 
+        if resource_resolver is None:
+            resource = resource_name
+        else:
+            resource = call_resolver_without_mutation(resolve_resource, *args, **kwargs)
+
         request = AccessRequest(
             principal=principal,
             action=normalized_action,
-            resource=resolve_resource(*args, **kwargs),
+            resource=resource,
         )
         decision = policy.evaluate(request)
 

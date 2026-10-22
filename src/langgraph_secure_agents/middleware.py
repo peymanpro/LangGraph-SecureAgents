@@ -11,6 +11,7 @@ from langchain.agents.middleware import wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
+from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, Principal
 from .policy import PolicyEngine
 
@@ -76,6 +77,10 @@ def create_authorization_middleware(
     reviewer and authorize access to the resume operation; the payload alone is
     not proof that an authorized human approved the action.
 
+    Custom action/resource resolvers receive detached argument copies. Mutating
+    those copies raises an error before the protected tool runs. Resolvers must
+    otherwise be trusted, side-effect-free application code.
+
     If configured auditing raises, the tool handler is not invoked (fail closed).
     Approval outcomes are audited after the interrupt resumes.
     """
@@ -90,21 +95,6 @@ def create_authorization_middleware(
         raise TypeError("resource_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
-
-    def default_action_resolver(
-        tool_name: str,
-        tool_args: Mapping[str, Any],
-    ) -> str:
-        return "execute"
-
-    def default_resource_resolver(
-        tool_name: str,
-        tool_args: Mapping[str, Any],
-    ) -> str:
-        return tool_name
-
-    resolve_action = action_resolver or default_action_resolver
-    resolve_resource = resource_resolver or default_resource_resolver
 
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
@@ -127,10 +117,20 @@ def create_authorization_middleware(
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
 
+        action = (
+            "execute"
+            if action_resolver is None
+            else call_resolver_without_mutation(action_resolver, tool_name, tool_args)
+        )
+        resource = (
+            tool_name
+            if resource_resolver is None
+            else call_resolver_without_mutation(resource_resolver, tool_name, tool_args)
+        )
         access_request = AccessRequest(
             principal=principal,
-            action=resolve_action(tool_name, tool_args),
-            resource=resolve_resource(tool_name, tool_args),
+            action=action,
+            resource=resource,
         )
         decision = policy.evaluate(access_request)
 
