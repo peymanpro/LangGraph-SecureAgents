@@ -291,3 +291,78 @@ def test_checkpointed_graph_rejects_approval_replayed_across_threads() -> None:
     assert resumed["result"] == "Approval response invalid; tool was not executed."
     assert handler_calls == []
     assert audit_reasons == ["approval_invalid"]
+
+
+def test_checkpointed_graph_rejects_approval_after_policy_definition_changes() -> None:
+    handler_calls: list[str] = []
+    audit_reasons: list[str] = []
+    call_id = "policy-change-replay-call"
+
+    def approval_rule(roles: frozenset[str]) -> PolicyRule:
+        return PolicyRule(
+            rule_id="approval-required-payroll-read",
+            effect=Effect.REQUIRE_APPROVAL,
+            actions=frozenset({"execute"}),
+            resources=frozenset({"read_payroll"}),
+            roles=roles,
+        )
+
+    def build_middleware(rule: PolicyRule) -> Any:
+        return create_authorization_middleware(
+            PolicyEngine([rule]),
+            principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+            audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
+        )
+
+    middleware = build_middleware(approval_rule(frozenset({"analyst"})))
+
+    def protected_handler(request: Any) -> ToolMessage:
+        handler_calls.append(call_id)
+        return ToolMessage(content="sensitive operation executed", tool_call_id=call_id)
+
+    def protected_tool_node(
+        state: ApprovalGraphState,
+        runtime: Runtime,
+    ) -> dict[str, str]:
+        request = SimpleNamespace(
+            tool_call={
+                "name": "read_payroll",
+                "args": {"employee_id": "employee-7"},
+                "id": call_id,
+            },
+            runtime=runtime,
+            state={},
+            tool=None,
+        )
+        response = middleware.wrap_tool_call(request, protected_handler)
+        assert isinstance(response, ToolMessage)
+        return {"result": response.content}
+
+    builder = StateGraph(ApprovalGraphState)
+    builder.add_node("protected_tool", protected_tool_node)
+    builder.add_edge(START, "protected_tool")
+    builder.add_edge("protected_tool", END)
+    graph = builder.compile(checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": "approval-policy-change"}}
+
+    paused = graph.invoke({"result": ""}, config)
+    assert "__interrupt__" in paused
+    payload = paused["__interrupt__"][0].value
+    assert handler_calls == []
+    assert audit_reasons == []
+
+    # Keep the approval requirement and rule ID, but change the policy definition.
+    middleware = build_middleware(approval_rule(frozenset({"analyst", "payroll-reviewer"})))
+    resumed = graph.invoke(
+        Command(
+            resume={
+                "approved": True,
+                "request_fingerprint": payload["request_fingerprint"],
+            }
+        ),
+        config,
+    )
+
+    assert resumed["result"] == "Approval response invalid; tool was not executed."
+    assert handler_calls == []
+    assert audit_reasons == ["approval_invalid"]
