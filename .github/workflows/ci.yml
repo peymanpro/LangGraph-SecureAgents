@@ -67,7 +67,8 @@ jobs:
 
           release = documents[".github/workflows/release.yml"]
           jobs = release.get("jobs", {})
-          if release.get("on", {}).get("push", {}).get("branches") != ["main"]:
+          triggers = release.get("on", release.get(True, {}))
+          if triggers.get("push", {}).get("branches") != ["main"]:
               raise SystemExit("automatic release workflow must run on pushes to main")
           if jobs.get("release", {}).get("permissions", {}).get("contents") != "write":
               raise SystemExit("versioning job must request contents: write")
