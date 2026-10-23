@@ -818,4 +818,3 @@ def test_approval_validator_is_not_called_for_mismatched_fingerprint(
     assert response.content == "Approval response invalid; tool was not executed."
     assert validator_calls == []
     assert handler_calls == []
-
