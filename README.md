@@ -189,6 +189,10 @@ Release tags trigger a GitHub Release workflow that verifies the tag matches the
 - [x] Initial threat model and security reporting guidance
 - [ ] API review and release-readiness checks
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for user-facing changes and release notes.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
