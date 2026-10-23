@@ -214,3 +214,81 @@ def test_checkpointed_graph_rejects_approval_when_host_validator_denies() -> Non
     assert resumed["result"] == "Approval response invalid; tool was not executed."
     assert validator_calls == [("untrusted-reviewer", "alice", payload["request_fingerprint"])]
     assert handler_calls == []
+
+
+
+def test_checkpointed_graph_rejects_approval_replayed_across_threads() -> None:
+    handler_calls: list[str] = []
+    audit_reasons: list[str] = []
+    call_id = "cross-thread-replay-call"
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="approval-required-payroll-read",
+                effect=Effect.REQUIRE_APPROVAL,
+                actions=frozenset({"execute"}),
+                resources=frozenset({"read_payroll"}),
+                roles=frozenset({"analyst"}),
+            )
+        ]
+    )
+    middleware = create_authorization_middleware(
+        policy,
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
+    )
+
+    def protected_handler(request: Any) -> ToolMessage:
+        handler_calls.append(call_id)
+        return ToolMessage(content="sensitive operation executed", tool_call_id=call_id)
+
+    def protected_tool_node(
+        state: ApprovalGraphState,
+        runtime: Runtime,
+    ) -> dict[str, str]:
+        request = SimpleNamespace(
+            tool_call={
+                "name": "read_payroll",
+                "args": {"employee_id": "employee-7"},
+                "id": call_id,
+            },
+            runtime=runtime,
+            state={},
+            tool=None,
+        )
+        response = middleware.wrap_tool_call(request, protected_handler)
+        assert isinstance(response, ToolMessage)
+        return {"result": response.content}
+
+    builder = StateGraph(ApprovalGraphState)
+    builder.add_node("protected_tool", protected_tool_node)
+    builder.add_edge(START, "protected_tool")
+    builder.add_edge("protected_tool", END)
+    graph = builder.compile(checkpointer=InMemorySaver())
+    first_config = {"configurable": {"thread_id": "approval-replay-source"}}
+    second_config = {"configurable": {"thread_id": "approval-replay-target"}}
+
+    first_paused = graph.invoke({"result": ""}, first_config)
+    second_paused = graph.invoke({"result": ""}, second_config)
+
+    assert "__interrupt__" in first_paused
+    assert "__interrupt__" in second_paused
+    first_payload = first_paused["__interrupt__"][0].value
+    second_payload = second_paused["__interrupt__"][0].value
+    assert first_payload["request_fingerprint"] != second_payload["request_fingerprint"]
+    assert handler_calls == []
+    assert audit_reasons == []
+
+    resumed = graph.invoke(
+        Command(
+            resume={
+                "approved": True,
+                "request_fingerprint": first_payload["request_fingerprint"],
+            }
+        ),
+        second_config,
+    )
+
+    assert resumed["result"] == "Approval response invalid; tool was not executed."
+    assert handler_calls == []
+    assert audit_reasons == ["approval_invalid"]
