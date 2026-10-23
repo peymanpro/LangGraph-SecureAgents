@@ -128,6 +128,7 @@ def test_checkpointed_graph_pauses_before_tool_and_resumes_with_bound_approval(
     assert first_execution[2] == resumed_execution[2]  # checkpoint namespace
     assert first_execution[3] == resumed_execution[3]  # task ID
 
+
 def test_checkpointed_graph_rejects_approval_when_host_validator_denies() -> None:
     handler_calls: list[str] = []
     validator_calls: list[tuple[str, str, str]] = []
