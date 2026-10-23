@@ -8,7 +8,7 @@ import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import AgentMiddleware, wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
@@ -316,4 +316,26 @@ def create_authorization_middleware(
 
         return handler(request)
 
-    return enforce_authorization
+    sync_middleware = enforce_authorization
+    sentinel = object()
+
+    async def enforce_authorization_async(request: Any, handler: Any) -> Any:
+        # Reuse the exact synchronous authorization path, substituting a sentinel
+        # handler so the real async tool is only awaited after authorization passes.
+        result = sync_middleware.wrap_tool_call(request, lambda _: sentinel)
+        if result is sentinel:
+            return await handler(request)
+        return result
+
+    async_middleware = wrap_tool_call(name="secure_agent_authorization_async")(
+        enforce_authorization_async
+    )
+
+    class _CombinedAuthorizationMiddleware(AgentMiddleware):
+        def wrap_tool_call(self, request: Any, handler: Any) -> Any:
+            return sync_middleware.wrap_tool_call(request, handler)
+
+        async def awrap_tool_call(self, request: Any, handler: Any) -> Any:
+            return await async_middleware.awrap_tool_call(request, handler)
+
+    return _CombinedAuthorizationMiddleware()
