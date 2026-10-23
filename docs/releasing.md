@@ -28,15 +28,11 @@ Do not mark the checklist complete just because CI is green. CI verifies the con
 
 ## Automated release workflow
 
-Pushing a tag matching `v*` triggers the release workflow:
+The release workflow runs on pushes to `main` and can also be started manually for diagnosis. It first runs the quality gate across Python 3.11, 3.12, and 3.13, then builds both distributions, validates them with Twine, installs the wheel in a clean environment, and smoke-tests the core API and optional middleware extra.
 
-1. Verify the tag matches the version in `pyproject.toml`.
-2. Build a wheel and source distribution.
-3. Validate distribution metadata with Twine.
-4. Publish the same validated artifacts to a GitHub Release.
-5. Publish those artifacts to PyPI using GitHub OIDC Trusted Publishing.
+Only after those checks pass does Python Semantic Release inspect Conventional Commit messages. When a release is warranted, it synchronizes the version in `pyproject.toml` and the package `__version__`, updates `CHANGELOG.md`, creates the version commit/tag, and creates a GitHub Release. The workflow then builds and validates the exact distributions, attaches them to that release, and publishes them to PyPI.
 
-The GitHub Release and PyPI jobs run independently after the validated build. PyPI publication requires the one-time Trusted Publisher configuration described above. The publishing job has only `id-token: write`; build and test jobs do not receive that permission. The workflow does not use a long-lived PyPI API token.
+The PyPI job is separate from the versioning job and receives only `id-token: write`; the versioning job does not receive OIDC permission. No permanent PyPI API token is used. Publication requires the one-time Trusted Publisher configuration and a GitHub environment named `pypi` with no required manual reviewer if the desired behavior is fully automatic.
 
 ## Automatic versioning
 
