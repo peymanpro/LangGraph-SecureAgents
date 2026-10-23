@@ -211,7 +211,5 @@ def test_checkpointed_graph_rejects_approval_when_host_validator_denies() -> Non
     )
 
     assert resumed["result"] == "Approval response invalid; tool was not executed."
-    assert validator_calls == [
-        ("untrusted-reviewer", "alice", payload["request_fingerprint"])
-    ]
+    assert validator_calls == [("untrusted-reviewer", "alice", payload["request_fingerprint"])]
     assert handler_calls == []
