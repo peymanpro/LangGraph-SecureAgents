@@ -778,3 +778,44 @@ def test_approval_validator_exception_fails_closed_before_handler(
         )
 
     assert handler_calls == []
+
+
+def test_approval_validator_is_not_called_for_mismatched_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    validator_calls: list[bool] = []
+    handler_calls: list[bool] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "approved": True,
+            "request_fingerprint": "fingerprint-from-another-request",
+            "reviewer_id": "reviewer-17",
+        }
+
+    def validator(
+        approval: Mapping[str, Any],
+        access_request: Any,
+        fingerprint: str,
+    ) -> bool:
+        validator_calls.append(True)
+        return True
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    middleware = create_authorization_middleware(
+        PolicyEngine([approval_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        approval_validator=validator,
+    )
+
+    response = middleware.wrap_tool_call(
+        middleware_request(tool_call_id="call-unbound-approval"),
+        lambda request: handler_calls.append(True),
+    )
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Approval response invalid; tool was not executed."
+    assert validator_calls == []
+    assert handler_calls == []
+
