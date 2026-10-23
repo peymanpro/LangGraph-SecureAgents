@@ -331,7 +331,7 @@ def create_authorization_middleware(
         enforce_authorization_async
     )
 
-    class _CombinedAuthorizationMiddleware(AgentMiddleware):
+    class _CombinedAuthorizationMiddleware(AgentMiddleware[Any, Any, Any]):
         def wrap_tool_call(self, request: Any, handler: Any) -> Any:
             return sync_middleware.wrap_tool_call(request, handler)
 
