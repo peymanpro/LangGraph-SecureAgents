@@ -181,3 +181,48 @@ def test_async_middleware_fails_closed_when_audit_callback_raises() -> None:
         asyncio.run(middleware.awrap_tool_call(request_for(), handler))
 
     assert handler_calls == []
+
+
+
+def test_async_middleware_rejects_mismatched_approval_before_validator(
+    monkeypatch: Any,
+) -> None:
+    validator_calls: list[bool] = []
+    handler_calls: list[bool] = []
+
+    def mismatched_approval(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": "different-execution"}
+
+    def validator(approval: Any, access_request: Any, fingerprint: str) -> bool:
+        validator_calls.append(True)
+        return True
+
+    monkeypatch.setattr(middleware_module, "interrupt", mismatched_approval)
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="approval-required-payroll",
+                effect=Effect.REQUIRE_APPROVAL,
+                actions=frozenset({"execute"}),
+                resources=frozenset({"read_payroll"}),
+                roles=frozenset({"analyst"}),
+            )
+        ]
+    )
+    middleware = create_authorization_middleware(
+        policy,
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        approval_validator=validator,
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        return ToolMessage(content="sensitive result", tool_call_id=request.tool_call["id"])
+
+    response = asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Approval response invalid; tool was not executed."
+    assert validator_calls == []
+    assert handler_calls == []
