@@ -4,6 +4,8 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from langchain_core.messages import ToolMessage
 
 from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
@@ -122,3 +124,60 @@ def test_async_middleware_requires_matching_approval_before_awaiting_handler(
     assert isinstance(response, ToolMessage)
     assert response.content == "approved async result"
     assert handler_calls == ["async-call-1"]
+
+
+
+def test_async_middleware_propagates_handler_exception() -> None:
+    handler_calls: list[bool] = []
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        raise RuntimeError("tool backend failed")
+
+    with pytest.raises(RuntimeError, match="tool backend failed"):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == [True]
+
+
+def test_async_middleware_propagates_handler_cancellation() -> None:
+    handler_calls: list[bool] = []
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == [True]
+
+
+def test_async_middleware_fails_closed_when_audit_callback_raises() -> None:
+    handler_calls: list[bool] = []
+
+    def fail_audit(request: Any, decision: Any) -> None:
+        raise RuntimeError("audit storage unavailable")
+
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=fail_audit,
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        return ToolMessage(content="sensitive result", tool_call_id=request.tool_call["id"])
+
+    with pytest.raises(RuntimeError, match="audit storage unavailable"):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == []
