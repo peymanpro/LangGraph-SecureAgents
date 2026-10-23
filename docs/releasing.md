@@ -20,6 +20,7 @@ Before tagging, verify each item against the exact commit to be released:
 - [ ] `pyproject.toml` and package `__version__` match.
 - [ ] A release note/changelog entry describes the shipped API and known limitations.
 - [ ] PyPI Trusted Publishing is configured for this repository, workflow file `.github/workflows/release.yml`, and GitHub environment `pypi`.
+- [ ] The GitHub `pypi` environment requires manual approval from a trusted maintainer before deployment, using environment protection rules.
 - [ ] The package name `langgraph-secure-agents` is available or its PyPI project/pending publisher is configured for this owner.
 - [ ] The maintainer has reviewed the final tag and understands that publishing to PyPI is irreversible for that version.
 
