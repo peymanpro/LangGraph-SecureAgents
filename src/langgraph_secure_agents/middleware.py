@@ -317,7 +317,7 @@ def create_authorization_middleware(
         return handler(request)
 
     sync_middleware = enforce_authorization
-    sentinel = object()
+    sentinel = ToolMessage(content="authorization sentinel", tool_call_id="__secure_agents_sentinel__")
 
     async def enforce_authorization_async(request: Any, handler: Any) -> Any:
         # Reuse the exact synchronous authorization path, substituting a sentinel
