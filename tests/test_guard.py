@@ -224,3 +224,43 @@ def test_protect_callable_rejects_invalid_configuration() -> None:
         options = {**valid_options, **overrides}
         with pytest.raises(exception, match=message):
             protect_callable(function, **options)  # type: ignore[arg-type]
+
+def test_async_callable_authorizes_when_awaited_not_when_coroutine_is_created() -> None:
+    import asyncio
+    from collections.abc import Awaitable
+
+    current_principal = [Principal("alice", roles=frozenset({"analyst"}))]
+    resolver_calls: list[str] = []
+    handler_calls: list[str] = []
+
+    async def read_payroll(employee_id: str) -> str:
+        handler_calls.append(employee_id)
+        return f"payroll:{employee_id}"
+
+    def resolve_principal() -> Principal:
+        resolver_calls.append(current_principal[0].principal_id)
+        return current_principal[0]
+
+    guarded = protect_callable(
+        read_payroll,
+        policy=PolicyEngine([allow_rule(resource="payroll:employee-7")]),
+        principal_resolver=resolve_principal,
+        action="read",
+        resource_resolver=lambda employee_id: f"payroll:{employee_id}",
+    )
+
+    async def scenario() -> None:
+        pending = guarded("employee-7")
+        assert isinstance(pending, Awaitable)
+        assert resolver_calls == []
+        assert handler_calls == []
+
+        current_principal[0] = Principal("mallory", roles=frozenset({"guest"}))
+        with pytest.raises(AuthorizationDenied):
+            await pending
+
+        assert resolver_calls == ["mallory"]
+        assert handler_calls == []
+
+    asyncio.run(scenario())
+
