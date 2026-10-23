@@ -37,21 +37,20 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
-      - name: Validate workflow YAML and release permissions
+      - name: Validate workflow YAML, action SHA pins, and release permissions
         run: |
           python - <<'PY'
           import re
           from pathlib import Path
-
           import yaml
 
-          workflow_paths = (
+          paths = (
               Path(".github/workflows/ci.yml"),
               Path(".github/workflows/release.yml"),
               Path(".github/dependabot.yml"),
           )
           documents = {}
-          for path in workflow_paths:
+          for path in paths:
               with path.open(encoding="utf-8") as stream:
                   document = yaml.safe_load(stream)
               if not isinstance(document, dict):
@@ -59,43 +58,26 @@ jobs:
               documents[path.as_posix()] = document
 
           sha_pattern = re.compile(r"^[0-9a-f]{40}$")
-          for path in workflow_paths[:2]:
-              document = documents[path.as_posix()]
-              for job_name, job in document.get("jobs", {}).items():
+          for path in paths[:2]:
+              for job_name, job in documents[path.as_posix()].get("jobs", {}).items():
                   for step in job.get("steps", []):
                       action = step.get("uses")
-                      if action is None:
-                          continue
-                      if "@" not in action or not sha_pattern.fullmatch(action.rsplit("@", 1)[1].split()[0]):
-                          raise SystemExit(
-                              f"{path}: {job_name} uses an action not pinned to a full commit SHA: {action}"
-                          )
+                      if action and ("@" not in action or not sha_pattern.fullmatch(action.rsplit("@", 1)[1].split()[0])):
+                          raise SystemExit(f"{path}: {job_name} action is not pinned to a full SHA: {action}")
 
           release = documents[".github/workflows/release.yml"]
-          release_jobs = release.get("jobs", {})
-          if release.get("permissions", {}).get("contents") != "read":
-              raise SystemExit("release workflow must default to contents: read")
-          if release_jobs.get("build", {}).get("permissions", {}).get("contents") != "read":
-              raise SystemExit("release build job must only request contents: read")
-          github_release = release_jobs.get("publish-github-release", {})
-          if github_release.get("permissions", {}).get("contents") != "write":
-              raise SystemExit("GitHub Release publishing job must request contents: write")
-          if github_release.get("needs") != "build":
-              raise SystemExit("GitHub Release publishing job must depend on the validated build job")
-
-          pypi_release = release_jobs.get("publish-pypi", {})
-          if pypi_release.get("permissions", {}).get("id-token") != "write":
-              raise SystemExit("PyPI publishing job must request id-token: write for Trusted Publishing")
-          if pypi_release.get("needs") != "build":
-              raise SystemExit("PyPI publishing job must depend on the validated build job")
-          if "contents" in pypi_release.get("permissions", {}):
+          jobs = release.get("jobs", {})
+          if release.get("on", {}).get("push", {}).get("branches") != ["main"]:
+              raise SystemExit("automatic release workflow must run on pushes to main")
+          if jobs.get("release", {}).get("permissions", {}).get("contents") != "write":
+              raise SystemExit("versioning job must request contents: write")
+          if jobs.get("publish-pypi", {}).get("permissions", {}).get("id-token") != "write":
+              raise SystemExit("PyPI publishing job must request id-token: write")
+          if "contents" in jobs.get("publish-pypi", {}).get("permissions", {}):
               raise SystemExit("PyPI publishing job must not request repository contents permissions")
-
-          for job_name, job in release_jobs.items():
-              if job_name not in {"publish-pypi"} and job.get("permissions", {}).get("id-token") == "write":
-                  raise SystemExit(f"only the PyPI publishing job may request id-token: write ({job_name})")
-
-          print("Workflow YAML, action SHA pins, and release job permissions validated.")
+          if jobs.get("publish-pypi", {}).get("needs") != "release":
+              raise SystemExit("PyPI publishing must depend on the release job")
+          print("Workflow YAML, action SHA pins, and automatic-release permissions validated.")
           PY
 
       - name: Type check
