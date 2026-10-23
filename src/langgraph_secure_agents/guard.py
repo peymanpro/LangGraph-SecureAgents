@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from inspect import iscoroutinefunction
+from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, Principal
@@ -25,6 +26,19 @@ class AuthorizationDenied(PermissionError):
         super().__init__(f"Access denied for action {request.action!r} ({decision.reason}).")
 
 
+@overload
+def protect_callable(
+    function: Callable[P, Awaitable[R]],
+    *,
+    policy: PolicyEngine,
+    principal_resolver: Callable[[], Principal],
+    action: str = "execute",
+    resource_resolver: ResourceResolver[P] | None = None,
+    audit_callback: AuditCallback | None = None,
+) -> Callable[P, Awaitable[R]]: ...
+
+
+@overload
 def protect_callable(
     function: Callable[P, R],
     *,
@@ -33,8 +47,23 @@ def protect_callable(
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
     audit_callback: AuditCallback | None = None,
-) -> Callable[P, R]:
-    """Return a callable that checks authorization immediately before execution.
+) -> Callable[P, R]: ...
+
+
+def protect_callable(
+    function: Callable[P, Any],
+    *,
+    policy: PolicyEngine,
+    principal_resolver: Callable[[], Principal],
+    action: str = "execute",
+    resource_resolver: ResourceResolver[P] | None = None,
+    audit_callback: AuditCallback | None = None,
+) -> Callable[P, Any]:
+    """Return a callable that authorizes immediately before protected execution.
+
+    Coroutine functions are authorized when their returned coroutine is awaited,
+    not when the coroutine object is created. This ensures the trusted principal
+    and policy are checked at the point execution begins.
 
     The principal resolver must obtain identity from trusted application context,
     not from arguments controlled by an LLM. The resource resolver must identify
@@ -61,8 +90,7 @@ def protect_callable(
     if resource_resolver is None:
         resource_name = getattr(function, "__name__", type(function).__name__)
 
-    @wraps(function)
-    def guarded(*args: P.args, **kwargs: P.kwargs) -> R:
+    def authorize(*args: P.args, **kwargs: P.kwargs) -> None:
         principal = principal_resolver()
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -85,6 +113,18 @@ def protect_callable(
         if not decision.allowed:
             raise AuthorizationDenied(request, decision)
 
+    if iscoroutinefunction(function):
+
+        @wraps(function)
+        async def guarded_async(*args: P.args, **kwargs: P.kwargs) -> Any:
+            authorize(*args, **kwargs)
+            return await cast(Awaitable[Any], function(*args, **kwargs))
+
+        return guarded_async
+
+    @wraps(function)
+    def guarded(*args: P.args, **kwargs: P.kwargs) -> Any:
+        authorize(*args, **kwargs)
         return function(*args, **kwargs)
 
     return guarded
