@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-
 from langchain_core.messages import ToolMessage
 
 from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
@@ -47,7 +46,6 @@ def allow_policy() -> PolicyEngine:
         ]
     )
 
-
 def test_async_middleware_awaits_allowed_handler() -> None:
     handler_calls: list[str] = []
     middleware = create_authorization_middleware(
@@ -66,7 +64,6 @@ def test_async_middleware_awaits_allowed_handler() -> None:
     assert response.content == "async result"
     assert handler_calls == ["async-call-1"]
 
-
 def test_async_middleware_denies_without_awaiting_handler() -> None:
     handler_calls: list[bool] = []
     middleware = create_authorization_middleware(
@@ -84,7 +81,6 @@ def test_async_middleware_denies_without_awaiting_handler() -> None:
     assert response.status == "error"
     assert response.content == "Authorization denied."
     assert handler_calls == []
-
 
 def test_async_middleware_requires_matching_approval_before_awaiting_handler(
     monkeypatch: Any,
@@ -125,8 +121,6 @@ def test_async_middleware_requires_matching_approval_before_awaiting_handler(
     assert response.content == "approved async result"
     assert handler_calls == ["async-call-1"]
 
-
-
 def test_async_middleware_propagates_handler_exception() -> None:
     handler_calls: list[bool] = []
     middleware = create_authorization_middleware(
@@ -143,7 +137,6 @@ def test_async_middleware_propagates_handler_exception() -> None:
 
     assert handler_calls == [True]
 
-
 def test_async_middleware_propagates_handler_cancellation() -> None:
     handler_calls: list[bool] = []
     middleware = create_authorization_middleware(
@@ -159,7 +152,6 @@ def test_async_middleware_propagates_handler_cancellation() -> None:
         asyncio.run(middleware.awrap_tool_call(request_for(), handler))
 
     assert handler_calls == [True]
-
 
 def test_async_middleware_fails_closed_when_audit_callback_raises() -> None:
     handler_calls: list[bool] = []
@@ -181,8 +173,6 @@ def test_async_middleware_fails_closed_when_audit_callback_raises() -> None:
         asyncio.run(middleware.awrap_tool_call(request_for(), handler))
 
     assert handler_calls == []
-
-
 
 def test_async_middleware_rejects_mismatched_approval_before_validator(
     monkeypatch: Any,
