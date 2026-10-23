@@ -293,7 +293,6 @@ def test_checkpointed_graph_rejects_approval_replayed_across_threads() -> None:
     assert audit_reasons == ["approval_invalid"]
 
 
-
 def test_checkpointed_graph_rejects_approval_after_policy_definition_changes() -> None:
     handler_calls: list[str] = []
     audit_reasons: list[str] = []
@@ -311,9 +310,7 @@ def test_checkpointed_graph_rejects_approval_after_policy_definition_changes() -
     def build_middleware(rule: PolicyRule) -> Any:
         return create_authorization_middleware(
             PolicyEngine([rule]),
-            principal_resolver=lambda context: Principal(
-                "alice", roles=frozenset({"analyst"})
-            ),
+            principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
             audit_callback=lambda request, decision: audit_reasons.append(decision.reason),
         )
 
@@ -355,9 +352,7 @@ def test_checkpointed_graph_rejects_approval_after_policy_definition_changes() -
     assert audit_reasons == []
 
     # Keep the approval requirement and rule ID, but change the policy definition.
-    middleware = build_middleware(
-        approval_rule(frozenset({"analyst", "payroll-reviewer"}))
-    )
+    middleware = build_middleware(approval_rule(frozenset({"analyst", "payroll-reviewer"})))
     resumed = graph.invoke(
         Command(
             resume={
