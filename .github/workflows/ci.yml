@@ -77,10 +77,23 @@ jobs:
               raise SystemExit("release workflow must default to contents: read")
           if release_jobs.get("build", {}).get("permissions", {}).get("contents") != "read":
               raise SystemExit("release build job must only request contents: read")
-          if release_jobs.get("publish", {}).get("permissions", {}).get("contents") != "write":
-              raise SystemExit("only the release publish job should request contents: write")
-          if release_jobs.get("publish", {}).get("needs") != "build":
-              raise SystemExit("release publish job must depend on the validated build job")
+          github_release = release_jobs.get("publish-github-release", {})
+          if github_release.get("permissions", {}).get("contents") != "write":
+              raise SystemExit("GitHub Release publishing job must request contents: write")
+          if github_release.get("needs") != "build":
+              raise SystemExit("GitHub Release publishing job must depend on the validated build job")
+
+          pypi_release = release_jobs.get("publish-pypi", {})
+          if pypi_release.get("permissions", {}).get("id-token") != "write":
+              raise SystemExit("PyPI publishing job must request id-token: write for Trusted Publishing")
+          if pypi_release.get("needs") != "build":
+              raise SystemExit("PyPI publishing job must depend on the validated build job")
+          if "contents" in pypi_release.get("permissions", {}):
+              raise SystemExit("PyPI publishing job must not request repository contents permissions")
+
+          for job_name, job in release_jobs.items():
+              if job_name not in {"publish-pypi"} and job.get("permissions", {}).get("id-token") == "write":
+                  raise SystemExit(f"only the PyPI publishing job may request id-token: write ({job_name})")
 
           print("Workflow YAML, action SHA pins, and release job permissions validated.")
           PY
