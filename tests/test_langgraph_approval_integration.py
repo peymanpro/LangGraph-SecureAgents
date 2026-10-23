@@ -368,7 +368,6 @@ def test_checkpointed_graph_rejects_approval_after_policy_definition_changes() -
     assert audit_reasons == ["approval_invalid"]
 
 
-
 @pytest.mark.parametrize("changed_component", ["tool_args", "tool_call_id"])
 def test_checkpointed_graph_rejects_approval_after_request_changes(
     changed_component: str,
