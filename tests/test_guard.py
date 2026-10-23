@@ -225,6 +225,7 @@ def test_protect_callable_rejects_invalid_configuration() -> None:
         with pytest.raises(exception, match=message):
             protect_callable(function, **options)  # type: ignore[arg-type]
 
+
 def test_async_callable_authorizes_when_awaited_not_when_coroutine_is_created() -> None:
     import asyncio
     from collections.abc import Awaitable
@@ -263,4 +264,3 @@ def test_async_callable_authorizes_when_awaited_not_when_coroutine_is_created() 
         assert handler_calls == []
 
     asyncio.run(scenario())
-
