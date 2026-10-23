@@ -4,6 +4,7 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from langchain_core.messages import ToolMessage
 
 from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
@@ -122,3 +123,103 @@ def test_async_middleware_requires_matching_approval_before_awaiting_handler(
     assert isinstance(response, ToolMessage)
     assert response.content == "approved async result"
     assert handler_calls == ["async-call-1"]
+
+
+def test_async_middleware_propagates_handler_exception() -> None:
+    handler_calls: list[bool] = []
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        raise RuntimeError("tool backend failed")
+
+    with pytest.raises(RuntimeError, match="tool backend failed"):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == [True]
+
+
+def test_async_middleware_propagates_handler_cancellation() -> None:
+    handler_calls: list[bool] = []
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == [True]
+
+
+def test_async_middleware_fails_closed_when_audit_callback_raises() -> None:
+    handler_calls: list[bool] = []
+
+    def fail_audit(request: Any, decision: Any) -> None:
+        raise RuntimeError("audit storage unavailable")
+
+    middleware = create_authorization_middleware(
+        allow_policy(),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        audit_callback=fail_audit,
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        return ToolMessage(content="sensitive result", tool_call_id=request.tool_call["id"])
+
+    with pytest.raises(RuntimeError, match="audit storage unavailable"):
+        asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert handler_calls == []
+
+
+def test_async_middleware_rejects_mismatched_approval_before_validator(
+    monkeypatch: Any,
+) -> None:
+    validator_calls: list[bool] = []
+    handler_calls: list[bool] = []
+
+    def mismatched_approval(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"approved": True, "request_fingerprint": "different-execution"}
+
+    def validator(approval: Any, access_request: Any, fingerprint: str) -> bool:
+        validator_calls.append(True)
+        return True
+
+    monkeypatch.setattr(middleware_module, "interrupt", mismatched_approval)
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="approval-required-payroll",
+                effect=Effect.REQUIRE_APPROVAL,
+                actions=frozenset({"execute"}),
+                resources=frozenset({"read_payroll"}),
+                roles=frozenset({"analyst"}),
+            )
+        ]
+    )
+    middleware = create_authorization_middleware(
+        policy,
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        approval_validator=validator,
+    )
+
+    async def handler(request: Any) -> ToolMessage:
+        handler_calls.append(True)
+        return ToolMessage(content="sensitive result", tool_call_id=request.tool_call["id"])
+
+    response = asyncio.run(middleware.awrap_tool_call(request_for(), handler))
+
+    assert isinstance(response, ToolMessage)
+    assert response.status == "error"
+    assert response.content == "Approval response invalid; tool was not executed."
+    assert validator_calls == []
+    assert handler_calls == []
