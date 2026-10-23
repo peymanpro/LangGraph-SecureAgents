@@ -22,13 +22,31 @@ Read the [threat model](docs/threat-model.md) for trust boundaries and deploymen
 
 Requires Python 3.11 or newer.
 
-Install the core package and development tools:
+### Install the published package
+
+After the first PyPI release is available, install the alpha package with its optional agent middleware:
+
+```bash
+python -m pip install --pre "langgraph-secure-agents[langchain-agents]"
+```
+
+For the core policy engine and callable guard without LangGraph middleware:
+
+```bash
+python -m pip install --pre langgraph-secure-agents
+```
+
+The `--pre` flag is needed while the latest published version is an alpha pre-release. Until the package is available on PyPI, use the source-install instructions below.
+
+### Install from a source checkout
+
+Clone this repository, then install the core package and development tools:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Install the optional middleware for LangChain agents built on LangGraph:
+Install the optional middleware dependencies from the same checkout:
 
 ```bash
 python -m pip install -e ".[langchain-agents]"
