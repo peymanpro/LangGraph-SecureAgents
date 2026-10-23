@@ -10,7 +10,7 @@ Follow PEP 440. Alpha versions such as `0.1.0a0` are pre-releases and are not st
 
 ## First-release checklist
 
-Before tagging, verify each item against the exact commit to be released:
+Before enabling the first automatic release, verify each item against the current `main` branch:
 
 - [ ] Public API names, signatures, behavior, and documented examples have been reviewed against the implementation.
 - [ ] README describes the project as a reusable library and accurately documents installation, optional dependencies, quick start, limitations, and supported Python versions.
@@ -20,7 +20,7 @@ Before tagging, verify each item against the exact commit to be released:
 - [ ] `pyproject.toml` and package `__version__` match.
 - [ ] A release note/changelog entry describes the shipped API and known limitations.
 - [ ] PyPI Trusted Publishing is configured for this repository, workflow file `.github/workflows/release.yml`, and GitHub environment `pypi`.
-- [ ] The GitHub `pypi` environment requires manual approval from a trusted maintainer before deployment, using environment protection rules.
+- [ ] The GitHub `pypi` environment exists and has no required reviewer gate, so publication can complete automatically after CI and PyPI Trusted Publishing succeed.
 - [ ] The package name `langgraph-secure-agents` is available or its PyPI project/pending publisher is configured for this owner.
 - [ ] The maintainer has reviewed the final tag and understands that publishing to PyPI is irreversible for that version.
 
@@ -38,24 +38,11 @@ Pushing a tag matching `v*` triggers the release workflow:
 
 The GitHub Release and PyPI jobs run independently after the validated build. PyPI publication requires the one-time Trusted Publisher configuration described above. The publishing job has only `id-token: write`; build and test jobs do not receive that permission. The workflow does not use a long-lived PyPI API token.
 
-## Prepare and push a release tag
+## Automatic versioning
 
-Run locally from the reviewed release commit only after the checklist is complete:
+Do not create version tags manually. Merge release-worthy changes into `main` with Conventional Commit messages. The workflow creates the version commit and tag only after the release quality gate passes.
 
-```bash
-git checkout main
-git pull --ff-only
-python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
-```
-
-Use the exact version printed by the command. For the current configured version, the tag would be:
-
-```bash
-git tag -a v0.1.0a0 -m "Release v0.1.0a0"
-git push origin v0.1.0a0
-```
-
-If the version changes before release, replace the example tag accordingly. Never reuse a published version or create a tag from an unreviewed commit.
+Before enabling automatic publication, configure PyPI Trusted Publishing and the GitHub `pypi` environment once. The release workflow uses OIDC and does not require a permanent PyPI token. If the PyPI publisher or environment is not configured, publication cannot complete; configure them before expecting the first release to succeed.
 
 ## After release
 
