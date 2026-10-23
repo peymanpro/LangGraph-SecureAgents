@@ -212,9 +212,7 @@ def test_checkpointed_graph_rejects_approval_when_host_validator_denies() -> Non
     )
 
     assert resumed["result"] == "Approval response invalid; tool was not executed."
-    assert validator_calls == [
-        ("untrusted-reviewer", "alice", payload["request_fingerprint"])
-    ]
+    assert validator_calls == [("untrusted-reviewer", "alice", payload["request_fingerprint"])]
     assert handler_calls == []
 
 
@@ -276,9 +274,7 @@ def test_checkpointed_graph_rejects_approval_replayed_across_threads() -> None:
     assert "__interrupt__" in second_paused
     first_payload = first_paused["__interrupt__"][0].value
     second_payload = second_paused["__interrupt__"][0].value
-    assert (
-        first_payload["request_fingerprint"] != second_payload["request_fingerprint"]
-    )
+    assert first_payload["request_fingerprint"] != second_payload["request_fingerprint"]
     assert handler_calls == []
     assert audit_reasons == []
 
