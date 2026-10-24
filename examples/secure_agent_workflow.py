@@ -10,6 +10,7 @@ uses a temporary directory so the repository stays clean.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import timedelta
@@ -144,7 +145,7 @@ def build_secure_workflow(
     audit_sink = SQLiteAuditSink(audit_database)
     executed_operations: list[str] = []
 
-    def resolve_resource(tool_name: str, args: dict[str, Any] | Any) -> str:
+    def resolve_resource(tool_name: str, args: Mapping[str, Any]) -> str:
         if tool_name == "read_customer":
             return f"customer:{args.get('customer_id', '')}"
         return tool_name
@@ -207,7 +208,8 @@ def build_secure_workflow(
         response = authorization.wrap_tool_call(request, execute_demo_tool)
         if not isinstance(response, ToolMessage):
             raise TypeError("authorization middleware must return a ToolMessage")
-        return {"result": response.content if isinstance(response.content, str) else str(response.content)}
+        result = response.content if isinstance(response.content, str) else str(response.content)
+        return {"result": result}
 
     builder = StateGraph(SecureDemoState, context_schema=DemoContext)
     builder.add_node("protected_tool", protected_tool_node)
