@@ -14,6 +14,7 @@ def record_event(event: AuditEvent) -> None:
     # Use include_sensitive=True only because this sink is trusted.
     durable_audit_store.write(event.to_json(include_sensitive=True))
 
+
 guarded_lookup = protect_callable(
     lookup_report,
     policy=policy,
