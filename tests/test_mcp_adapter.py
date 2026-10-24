@@ -188,9 +188,7 @@ def test_async_mcp_handler_is_authorized_when_awaited() -> None:
 
     @protect_mcp_tool(
         policy=policy,
-        principal_resolver=lambda _ctx: Principal(
-            "service-account", roles=frozenset({"reader"})
-        ),
+        principal_resolver=lambda _ctx: Principal("service-account", roles=frozenset({"reader"})),
         action="read",
         resource_resolver=lambda args: f"report:{args['report_id']}",
     )
