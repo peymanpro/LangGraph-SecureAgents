@@ -410,6 +410,7 @@ def test_non_principal_resolver_result_is_rejected_before_execution() -> None:
         ).invoke(_initial_state(), context=_context())
     assert side_effects == []
 
+
 def test_untrusted_graph_state_cannot_escalate_principal_roles() -> None:
     side_effects: list[str] = []
 
@@ -427,7 +428,6 @@ def test_untrusted_graph_state_cannot_escalate_principal_roles() -> None:
 
     assert raised.value.request.principal.roles == frozenset({"viewer"})
     assert side_effects == [], "model-controlled state must not grant an operator role"
-
 
 
 def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
