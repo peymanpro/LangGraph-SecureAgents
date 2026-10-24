@@ -86,6 +86,7 @@ def test_audit_event_serialization_redacts_identifiers_by_default() -> None:
     assert "request_id" not in payload
     assert "execution_id" not in payload
     assert "tool_name" not in payload
+    assert "policy_digest" not in payload
     assert "alice" not in encoded
     assert "payroll:employee-7" not in encoded
 
@@ -100,6 +101,7 @@ def test_audit_event_can_explicitly_serialize_sensitive_fields() -> None:
     assert payload["request_id"] == "request-123"
     assert payload["execution_id"] == "run-456"
     assert payload["tool_name"] == "read_payroll"
+    assert payload["policy_digest"] == "a" * 64
 
 
 @pytest.mark.parametrize("duration_ms", [-1, float("nan"), float("inf"), True])
