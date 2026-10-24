@@ -189,8 +189,12 @@ def protect_callable(
                 request_id=request_id,
                 execution_id=execution_id,
                 policy_id=policy_snapshot.policy_id if policy_snapshot is not None else policy_id,
-                policy_version=policy_snapshot.version if policy_snapshot is not None else policy_version,
-                policy_digest=policy_snapshot.digest if policy_snapshot is not None else policy_digest,
+                policy_version=(
+                    policy_snapshot.version if policy_snapshot is not None else policy_version
+                ),
+                policy_digest=(
+                    policy_snapshot.digest if policy_snapshot is not None else policy_digest
+                ),
             )
             audit_event_callback(event)
 
