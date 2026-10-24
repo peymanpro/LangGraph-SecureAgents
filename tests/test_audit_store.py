@@ -174,6 +174,7 @@ def test_concurrent_appends_preserve_a_contiguous_valid_hash_chain() -> None:
     assert sink.verify_integrity()
     sink.close()
 
+
 @pytest.mark.parametrize(
     ("payload_json", "failure"),
     [
