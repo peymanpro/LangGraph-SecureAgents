@@ -13,6 +13,7 @@ from langgraph_secure_agents import (
     DecisionReason,
     Effect,
     PolicyBundle,
+    PolicyEngine,
     PolicyRegistry,
     PolicyRule,
     Principal,
@@ -86,7 +87,7 @@ def test_middleware_consumes_approval_grant_once_and_rejects_replay(
 
     monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
     middleware = create_authorization_middleware(
-        __import__("langgraph_secure_agents").PolicyEngine(approval_bundle(requires_approval=True).rules),
+        PolicyEngine(approval_bundle(requires_approval=True).rules),
         principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
         approval_store=store,
         approval_reviewer_resolver=reviewer_id,
@@ -135,7 +136,7 @@ def test_middleware_binds_grant_to_trusted_reviewer_identity(
         },
     )
     middleware = create_authorization_middleware(
-        __import__("langgraph_secure_agents").PolicyEngine(approval_bundle(requires_approval=True).rules),
+        PolicyEngine(approval_bundle(requires_approval=True).rules),
         principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
         approval_store=store,
         approval_reviewer_resolver=reviewer_id,
@@ -154,8 +155,6 @@ def test_middleware_binds_grant_to_trusted_reviewer_identity(
 
 def test_approval_store_and_custom_validator_are_mutually_exclusive(tmp_path: Path) -> None:
     store = SQLiteApprovalStore(tmp_path / "invalid-config.sqlite3")
-    from langgraph_secure_agents import PolicyEngine
-
     with pytest.raises(ValueError, match="not both"):
         create_authorization_middleware(
             PolicyEngine(),
@@ -174,8 +173,6 @@ def test_approval_store_and_custom_validator_are_mutually_exclusive(tmp_path: Pa
 
 
 def test_middleware_uses_one_current_policy_registry_snapshot_for_audit() -> None:
-    from langgraph_secure_agents import PolicyEngine
-
     registry = PolicyRegistry(approval_bundle(requires_approval=False))
     events: list[AuditEvent] = []
     middleware = create_authorization_middleware(
