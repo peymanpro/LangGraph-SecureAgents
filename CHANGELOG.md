@@ -4,6 +4,14 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.2.0 (2026-10-24)
+
+### Features
+
+- **abac**: Add attribute-based authorization
+  ([`6d78f3b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6d78f3b852990194b05819254b42cbdcd7a87adc))
+
+
 ## v0.1.1 (2026-10-24)
 
 ### Bug Fixes
