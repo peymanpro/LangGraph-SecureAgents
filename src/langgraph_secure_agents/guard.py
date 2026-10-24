@@ -8,8 +8,8 @@ from inspect import iscoroutinefunction
 from time import perf_counter
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
-from .audit import AuditEvent, AuditEventCallback
 from ._resolver_safety import call_resolver_without_mutation
+from .audit import AuditEvent, AuditEventCallback
 from .models import AccessRequest, Decision, JSONValue, Principal
 from .policy import PolicyEngine
 
