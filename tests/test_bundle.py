@@ -212,7 +212,7 @@ def test_bundle_rejects_invalid_rule_and_condition_shapes() -> None:
     payload = sample_bundle().to_dict()
     payload["rules"] = ["not-a-rule"]
 
-    with pytest.raises(ValueError, match="rules\[0\] must be an object"):
+    with pytest.raises(ValueError, match=r"rules\[0\] must be an object"):
         PolicyBundle.from_dict(payload)
 
     payload = sample_bundle().to_dict()
@@ -290,7 +290,7 @@ def test_yaml_support_can_be_absent_without_breaking_core_bundle(
 
     with monkeypatch.context() as patcher:
         patcher.setitem(sys.modules, "yaml", None)
-        with pytest.raises(ImportError, match="install 'langgraph-secure-agents\[yaml\]'"):
+        with pytest.raises(ImportError, match=r"install 'langgraph-secure-agents\[yaml\]'"):
             original.to_yaml()
         with pytest.raises(ImportError, match="install 'langgraph-secure-agents\[yaml\]'"):
             PolicyBundle.from_yaml("schema_version: 1")
