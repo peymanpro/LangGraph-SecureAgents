@@ -522,12 +522,12 @@ class PolicyBundle:
 
         source = Path(path)
         suffix = source.suffix.lower()
+        if suffix not in {".json", ".yaml", ".yml"}:
+            raise ValueError("policy bundle files must use .json, .yaml, or .yml")
         content = source.read_text(encoding="utf-8")
         if suffix == ".json":
             return cls.from_json(content)
-        if suffix in {".yaml", ".yml"}:
-            return cls.from_yaml(content)
-        raise ValueError("policy bundle files must use .json, .yaml, or .yml")
+        return cls.from_yaml(content)
 
     @classmethod
     def from_yaml(cls, content: str) -> PolicyBundle:
@@ -541,8 +541,32 @@ class PolicyBundle:
             raise ImportError(
                 "YAML support requires PyYAML; install 'langgraph-secure-agents[yaml]'"
             ) from exc
+        class UniqueKeyLoader(yaml.SafeLoader):
+            pass
+
+        def construct_unique_mapping(
+            loader: Any,
+            node: Any,
+            deep: bool = False,
+        ) -> dict[object, object]:
+            result: dict[object, object] = {}
+            for key_node, value_node in node.value:
+                key = loader.construct_object(key_node, deep=deep)
+                try:
+                    duplicate = key in result
+                except TypeError as exc:
+                    raise ValueError("YAML policy bundle mapping keys must be hashable") from exc
+                if duplicate:
+                    raise ValueError(f"YAML policy bundle contains duplicate key {key!r}")
+                result[key] = loader.construct_object(value_node, deep=deep)
+            return result
+
+        UniqueKeyLoader.add_constructor(
+            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+            construct_unique_mapping,
+        )
         try:
-            payload = yaml.safe_load(content)
+            payload = yaml.load(content, Loader=UniqueKeyLoader)
         except yaml.YAMLError as exc:
             raise ValueError(f"invalid policy bundle YAML: {exc}") from exc
         return cls.from_dict(payload)
@@ -558,7 +582,7 @@ class PolicyBundle:
             content = self.to_yaml()
         else:
             raise ValueError("policy bundle files must use .json, .yaml, or .yml")
-        destination.write_text(content + "\\n", encoding="utf-8")
+        destination.write_text(content + "\n", encoding="utf-8")
         return destination
 
     def to_yaml(self) -> str:
