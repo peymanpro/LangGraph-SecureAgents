@@ -3,7 +3,17 @@
 from importlib.metadata import PackageNotFoundError, version
 
 from .guard import AuthorizationDenied, protect_callable
-from .models import AccessRequest, Decision, DecisionReason, Effect, PolicyRule, Principal
+from .models import (
+    AccessRequest,
+    AttributeCondition,
+    AttributeReference,
+    ConditionOperator,
+    Decision,
+    DecisionReason,
+    Effect,
+    PolicyRule,
+    Principal,
+)
 from .policy import PolicyEngine
 
 try:
@@ -14,7 +24,10 @@ except PackageNotFoundError:
 
 __all__ = [
     "AccessRequest",
+    "AttributeCondition",
+    "AttributeReference",
     "AuthorizationDenied",
+    "ConditionOperator",
     "Decision",
     "DecisionReason",
     "Effect",
