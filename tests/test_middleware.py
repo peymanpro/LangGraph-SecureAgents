@@ -823,7 +823,6 @@ def test_approval_validator_is_not_called_for_mismatched_fingerprint(
     assert handler_calls == []
 
 
-
 def test_middleware_enforces_tenant_abac_using_trusted_resource_metadata() -> None:
     resources = {
         "document:42": {"tenant_id": "tenant-a"},
