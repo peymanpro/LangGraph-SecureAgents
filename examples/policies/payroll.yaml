@@ -1,0 +1,49 @@
+schema_version: 1
+policy_id: payroll-access
+version: 1.0.0
+description: >
+  Example policy bundle for tenant-scoped payroll access, restricted data,
+  and human approval of payroll deletion.
+rules:
+  - rule_id: analysts-read-own-tenant-payroll
+    effect: allow
+    actions:
+      - read
+    resources:
+      - payroll
+    principal_ids: []
+    roles:
+      - analyst
+    conditions:
+      - attribute: principal.attributes.tenant_id
+        operator: eq
+        value_from: resource.attributes.tenant_id
+      - attribute: context.environment
+        operator: eq
+        value: production
+  - rule_id: deny-restricted-payroll
+    effect: deny
+    actions:
+      - read
+    resources:
+      - payroll
+    principal_ids:
+      - "*"
+    roles: []
+    conditions:
+      - attribute: resource.attributes.classification
+        operator: eq
+        value: restricted
+  - rule_id: require-approval-for-payroll-deletion
+    effect: require_approval
+    actions:
+      - delete
+    resources:
+      - payroll
+    principal_ids: []
+    roles:
+      - analyst
+    conditions:
+      - attribute: context.environment
+        operator: eq
+        value: production
