@@ -162,9 +162,13 @@ def _parse_rule(value: object, index: int) -> PolicyRule:
             raise ValueError(f"{where}.{selector} must be a list of strings")
     if not isinstance(rule["effect"], str):
         raise ValueError(f"{where}.effect must be a string")
+    try:
+        effect = Effect(rule["effect"])
+    except ValueError as exc:
+        raise ValueError(f"{where}.effect must be a supported effect") from exc
     return PolicyRule(
         rule_id=_required_text(rule["rule_id"], f"{where}.rule_id"),
-        effect=rule["effect"],
+        effect=effect,
         actions=frozenset(rule["actions"]),
         resources=frozenset(rule["resources"]),
         principal_ids=frozenset(rule["principal_ids"]),
