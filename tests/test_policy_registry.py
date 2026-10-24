@@ -184,4 +184,3 @@ def test_registry_rejects_invalid_initial_candidate_and_rollback_generation() ->
         registry.rollback(expected_generation=True)
     with pytest.raises(PolicyUpdateConflict, match="expected policy generation"):
         registry.rollback(expected_generation=1)
-
