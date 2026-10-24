@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from math import isfinite
 from typing import Any
 
@@ -18,6 +19,65 @@ from .models import (
 )
 
 _MISSING = object()
+
+
+@dataclass(frozen=True, slots=True)
+class ConditionTrace:
+    """Result for one condition; actual attribute values are intentionally omitted."""
+
+    attribute: str
+    operator: ConditionOperator
+    matched: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RuleTrace:
+    """Explain whether a rule matched without copying sensitive request values."""
+
+    rule_id: str
+    effect: Effect
+    selectors_match: bool
+    conditions: tuple[ConditionTrace, ...]
+    matched: bool
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyExplanation:
+    """Decision plus a per-rule explanation suitable for logs or debugging."""
+
+    decision: Decision
+    rules: tuple[RuleTrace, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-compatible explanation without attribute values."""
+
+        return {
+            "decision": {
+                "allowed": self.decision.allowed,
+                "reason": self.decision.reason.value,
+                "matched_rule_ids": list(self.decision.matched_rule_ids),
+                "requires_approval": self.decision.requires_approval,
+            },
+            "rules": [
+                {
+                    "rule_id": rule.rule_id,
+                    "effect": rule.effect.value,
+                    "selectors_match": rule.selectors_match,
+                    "matched": rule.matched,
+                    "reason": rule.reason,
+                    "conditions": [
+                        {
+                            "attribute": condition.attribute,
+                            "operator": condition.operator.value,
+                            "matched": condition.matched,
+                        }
+                        for condition in rule.conditions
+                    ],
+                }
+                for rule in self.rules
+            ],
+        }
 
 
 class PolicyEngine:
@@ -97,8 +157,57 @@ class PolicyEngine:
 
         return Decision(allowed=False, reason=DecisionReason.DEFAULT_DENY)
 
+    def explain(self, request: AccessRequest) -> PolicyExplanation:
+        """Explain a decision rule by rule without exposing attribute values."""
+
+        if not isinstance(request, AccessRequest):
+            raise TypeError("request must be an AccessRequest instance")
+
+        traces: list[RuleTrace] = []
+        for rule in self._rules:
+            selectors_match = self._selectors_match(rule, request)
+            conditions = (
+                tuple(
+                    ConditionTrace(
+                        attribute=condition.attribute,
+                        operator=condition.operator,
+                        matched=self._condition_matches(condition, request),
+                    )
+                    for condition in rule.conditions
+                )
+                if selectors_match
+                else ()
+            )
+            conditions_match = all(condition.matched for condition in conditions)
+            matched = selectors_match and conditions_match
+            reason = (
+                "matched"
+                if matched
+                else "selector_mismatch"
+                if not selectors_match
+                else "condition_failed"
+            )
+            traces.append(
+                RuleTrace(
+                    rule_id=rule.rule_id,
+                    effect=rule.effect,
+                    selectors_match=selectors_match,
+                    conditions=conditions,
+                    matched=matched,
+                    reason=reason,
+                )
+            )
+
+        return PolicyExplanation(decision=self.evaluate(request), rules=tuple(traces))
+
     @classmethod
     def _matches(cls, rule: PolicyRule, request: AccessRequest) -> bool:
+        return cls._selectors_match(rule, request) and all(
+            cls._condition_matches(condition, request) for condition in rule.conditions
+        )
+
+    @staticmethod
+    def _selectors_match(rule: PolicyRule, request: AccessRequest) -> bool:
         if rule.actions != frozenset({"*"}) and request.action not in rule.actions:
             return False
         if rule.resources != frozenset({"*"}) and request.resource not in rule.resources:
@@ -111,7 +220,7 @@ class PolicyEngine:
         if rule.roles and not request.principal.roles.intersection(rule.roles):
             return False
 
-        return all(cls._condition_matches(condition, request) for condition in rule.conditions)
+        return True
 
     @classmethod
     def _condition_matches(

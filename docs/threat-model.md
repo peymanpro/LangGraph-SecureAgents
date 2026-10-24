@@ -29,6 +29,10 @@ LLM-generated tool names, arguments, and natural-language claims are untrusted. 
 
 Policy rules are application security configuration. Only trusted operators or code should define and change them. A permissive wildcard rule can intentionally grant broad access, so policy changes require review and regression tests.
 
+Versioned PolicyBundle files provide strict JSON/YAML parsing, immutable in-memory rules, a policy ID/version, a content digest, lint diagnostics, rule explanations, and candidate-versus-baseline simulation. Parsing rejects unknown schema fields and duplicate JSON/YAML keys. Lint results are advisory and do not change enforcement; teams should make lint findings and simulation results part of their own release process.
+
+The SHA-256 bundle digest identifies serialized content; it is not a signature and does not prove origin or authenticity. This library does not provide a trusted policy registry, signed policy delivery, automatic hot reload, deployment approvals, or rollback orchestration. Protect policy files and their deployment pipeline as security-sensitive configuration.
+
 ### Resolver purity and underlying resource
 
 Action and resource resolvers take part in authorization decisions. Mutating input arguments during scope resolution can cause the policy target to differ from what a protected operation later consumes. The library supplies detached copies to these resolvers and fails closed when it detects input mutation or cannot validate that the copies remain unchanged. Resolver callbacks must still be trusted application code and must not have unrelated side effects.
@@ -95,5 +99,7 @@ This library does not itself provide:
 - Keep downstream authorization enabled.
 - Configure an audit callback and handle its failures deliberately.
 - Test denied requests, role changes, resource substitution, missing policy matches, and attempted identity spoofing.
+- Review PolicyBundle lint findings and compare candidate policies against representative baseline requests before deployment.
+- Record the policy ID, semantic version, and content digest with your own deployment/audit metadata; do not treat the digest as a signature.
 - Pin and review dependencies; run the project's CI against the version being deployed.
 - Do not deploy this pre-release library as the sole control for production-sensitive resources.

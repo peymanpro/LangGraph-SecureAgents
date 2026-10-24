@@ -16,6 +16,7 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and c
 
 - **Deterministic policy evaluation** with default-deny behavior and explicit-deny rules taking precedence over allow rules.
 - **Role- and attribute-based access control (RBAC/ABAC)**, including conditions over trusted principal, resource, and request-context attributes.
+- **Versioned policy bundles** that load declarative JSON/YAML rules, lint risky scopes, explain decisions, and simulate proposed changes against a baseline.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
 - **Human-approval interrupts** for selected sensitive agent actions.
@@ -159,6 +160,42 @@ Supported operators are `eq`, `ne`, `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `c
 
 The same conditions are supported by both callable guards and the optional agent middleware. For a callable guard, pass a `resource_attributes_resolver(resource_id)` to load trusted metadata for the resolved resource, plus a zero-argument `context_resolver()` for trusted request context. For the middleware, `resource_attributes_resolver(resource_id)` receives the resolved resource ID and `context_resolver(runtime_context)` selects trusted values from the host-supplied runtime context. Resolver results must describe the actual resource and must not copy authorization attributes from model-generated tool arguments.
 
+## Versioned policy bundles
+
+Keep authorization rules in a reviewed policy file instead of constructing every rule in application code. A bundle carries a stable policy ID, semantic version, schema version, validated rules, and a deterministic SHA-256 digest.
+
+For JSON, no extra dependency is needed. To load or save YAML, install the optional extra:
+
+~~~bash
+python -m pip install "langgraph-secure-agents[yaml]"
+~~~
+
+~~~python
+from langgraph_secure_agents import PolicyBundle
+
+policy_bundle = PolicyBundle.from_file("policies/payroll.yaml")
+policy = policy_bundle.engine
+
+for finding in policy_bundle.lint():
+    print(f"{finding.severity.value} {finding.code}: {finding.message}")
+
+decision = policy.evaluate(request)
+explanation = policy_bundle.explain(request)
+~~~
+
+The parser rejects duplicate JSON/YAML keys, unsupported schema versions, unknown fields, and malformed rules. Lint flags broad wildcard allows, universal-principal allows, broad approval scopes, and repeated conditions without silently changing policy behavior. Explanations show which selectors and conditions matched, but omit actual attribute values.
+
+Before rollout, compare a candidate policy with the currently deployed bundle using a representative request set:
+
+~~~python
+report = candidate.simulate(test_requests, baseline=current_bundle)
+print(report.to_dict()["summary"])
+~~~
+
+The report summarizes allowed, denied, approval-required, and changed outcomes without copying identities, resource IDs, or attributes into the report. A digest helps identify a bundle's exact content, but it is not a digital signature or proof of who authored it.
+
+The repository includes [a payroll policy in YAML](examples/policies/payroll.yaml) and a runnable [bundle lint, explanation, and simulation example](examples/policy_bundle_workflow.py). See the full [policy bundle guide](docs/policy-bundles.md) for the format, diagnostic codes, and deployment trust boundaries.
+
 ## Protect an existing Python callable
 
 Wrap a function that accesses a protected resource. The resolver must identify the same resource that the function actually accesses.
@@ -260,6 +297,7 @@ CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and
 ## Project documentation
 
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
+- [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, explanation, and simulation.
 - [Security policy](SECURITY.md) — project status and vulnerability reporting.
 - [Changelog](CHANGELOG.md) — user-facing changes by release.
 - [Releasing](docs/releasing.md) — maintainer information about automated releases.
