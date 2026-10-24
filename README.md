@@ -337,22 +337,35 @@ For multi-user applications, resolve identity from authenticated request context
 Use `protect_node` when a sensitive operation is implemented as a LangGraph node and you want a policy check immediately before that node's body runs. This is a separate integration from the LangChain agent middleware, which protects tool calls.
 
 ```python
+from collections.abc import Mapping
+from typing import TypedDict
+
 from langgraph.runtime import Runtime
 from langgraph_secure_agents import PolicyEngine, Principal
 from langgraph_secure_agents.langgraph import protect_node
 
+class RequestContext(TypedDict):
+    user_id: str
+    roles: list[str]
+
 def resolve_principal(context: object) -> Principal:
     # The host must populate this context from authenticated server-side data.
-    return Principal(context["user_id"], roles=frozenset(context["roles"]))
+    if not isinstance(context, Mapping):
+        raise TypeError("expected trusted runtime context")
+    return Principal(str(context["user_id"]), roles=frozenset(context["roles"]))
 
-protected_refund = protect_node(
+def refund_node(state: dict[str, str], runtime: Runtime[RequestContext]) -> dict[str, bool]:
+    # Call the actual domain operation here.
+    return {"completed": True}
+
+protected_node = protect_node(
     refund_node,
     policy=policy,
     principal_resolver=resolve_principal,
     action="refund",
     resource_resolver=lambda state: f"order:{state['order_id']}",
 )
-builder.add_node("refund", protected_refund)
+builder.add_node("refund", protected_node)
 ```
 
 The node must declare a LangGraph `Runtime` parameter (for example `runtime: Runtime[RequestContext]`), and the host should pass trusted identity through `graph.invoke(..., context=...)`. The resource resolver must identify the same order the protected operation actually modifies; graph state and model-generated arguments are not trusted identity or authorization evidence.
