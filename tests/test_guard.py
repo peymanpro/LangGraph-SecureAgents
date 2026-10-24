@@ -223,6 +223,18 @@ def test_protect_callable_rejects_invalid_configuration() -> None:
             TypeError,
             "resource_resolver must be callable",
         ),
+        (
+            operation,
+            {"resource_attributes_resolver": object()},
+            TypeError,
+            "resource_attributes_resolver must be callable",
+        ),
+        (
+            operation,
+            {"context_resolver": object()},
+            TypeError,
+            "context_resolver must be callable",
+        ),
         (operation, {"audit_callback": object()}, TypeError, "audit_callback must be callable"),
         (operation, {"action": ""}, ValueError, "concrete action"),
         (operation, {"action": "*"}, ValueError, "concrete action"),
@@ -341,3 +353,39 @@ def test_callable_guard_fails_closed_when_attribute_resolvers_return_non_mapping
 
     with pytest.raises(TypeError, match="resource_attributes_resolver must return a mapping"):
         guarded("42")
+
+
+
+def test_callable_guard_fails_closed_when_context_resolver_returns_non_mapping() -> None:
+    calls: list[bool] = []
+
+    def operation() -> str:
+        calls.append(True)
+        return "executed"
+
+    guarded = protect_callable(
+        operation,
+        policy=PolicyEngine([allow_rule(resource="operation")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+        context_resolver=lambda: "untrusted-context",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="context_resolver must return a mapping"):
+        guarded()
+
+    assert calls == []
+
+
+def test_async_callable_executes_when_authorization_succeeds() -> None:
+    import asyncio
+
+    async def operation() -> str:
+        return "approved"
+
+    guarded = protect_callable(
+        operation,
+        policy=PolicyEngine([allow_rule(resource="operation", action="execute")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    assert asyncio.run(guarded()) == "approved"
