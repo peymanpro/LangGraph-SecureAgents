@@ -945,3 +945,45 @@ def test_abac_condition_definitions_are_bound_into_approval_fingerprint(
 
     assert len(fingerprints) == 2
     assert fingerprints[0] != fingerprints[1]
+
+
+
+def test_middleware_rejects_non_callable_attribute_resolvers() -> None:
+    options: dict[str, Any] = {
+        "policy": PolicyEngine(),
+        "principal_resolver": lambda context: Principal("alice"),
+    }
+
+    with pytest.raises(TypeError, match="resource_attributes_resolver must be callable"):
+        create_authorization_middleware(**options, resource_attributes_resolver=object())  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="context_resolver must be callable"):
+        create_authorization_middleware(**options, context_resolver=object())  # type: ignore[arg-type]
+
+
+def test_middleware_fails_closed_when_resource_attributes_resolver_returns_non_mapping() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([allow_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        resource_attributes_resolver=lambda resource: "not-metadata",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="resource_attributes_resolver must return a mapping"):
+        middleware.wrap_tool_call(
+            middleware_request(),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-resource"),
+        )
+
+
+def test_middleware_fails_closed_when_context_resolver_returns_non_mapping() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([allow_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        context_resolver=lambda context: "not-context",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="context_resolver must return a mapping"):
+        middleware.wrap_tool_call(
+            middleware_request(),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-context"),
+        )
