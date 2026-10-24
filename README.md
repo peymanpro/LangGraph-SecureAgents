@@ -348,15 +348,18 @@ class RequestContext(TypedDict):
     user_id: str
     roles: list[str]
 
+
 def resolve_principal(context: object) -> Principal:
     # The host must populate this context from authenticated server-side data.
     if not isinstance(context, Mapping):
         raise TypeError("expected trusted runtime context")
     return Principal(str(context["user_id"]), roles=frozenset(context["roles"]))
 
+
 def refund_node(state: dict[str, str], runtime: Runtime[RequestContext]) -> dict[str, bool]:
     # Call the actual domain operation here.
     return {"completed": True}
+
 
 protected_node = protect_node(
     refund_node,
@@ -371,6 +374,7 @@ builder.add_node("refund", protected_node)
 The node must declare a LangGraph `Runtime` parameter (for example `runtime: Runtime[RequestContext]`), and the host should pass trusted identity through `graph.invoke(..., context=...)`. The resource resolver must identify the same order the protected operation actually modifies; graph state and model-generated arguments are not trusted identity or authorization evidence.
 
 Only explicitly wrapped nodes are guarded. A deny, missing allow rule, resolver error, or configured audit callback failure stops the original node from running. `Effect.REQUIRE_APPROVAL` is not an allow: this node guard denies it before execution rather than creating an interrupt. Use the existing checkpointed tool approval flow for human review of protected agent tool calls. See the [LangGraph integration guide](docs/langgraph-integration.md) and [threat model](docs/threat-model.md).
+
 ## Optional agent middleware
 
 Install the `langchain-agents` extra and add the authorization middleware to a supported LangChain agent:
