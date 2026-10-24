@@ -298,7 +298,6 @@ def test_yaml_support_can_be_absent_without_breaking_core_bundle(
     assert PolicyBundle.from_json(original.to_json()) == original
 
 
-
 def test_lint_warns_when_bundle_is_empty() -> None:
     bundle = PolicyBundle(policy_id="empty", version="1.0.0", rules=())
 
@@ -368,9 +367,7 @@ def test_lint_reports_duplicate_conditions_once_per_rule() -> None:
 
     findings = bundle.lint()
 
-    assert [(item.code, item.rule_id) for item in findings] == [
-        ("POL001", "duplicated-condition")
-    ]
+    assert [(item.code, item.rule_id) for item in findings] == [("POL001", "duplicated-condition")]
 
 
 def test_lint_is_quiet_for_narrow_policy_rules() -> None:
