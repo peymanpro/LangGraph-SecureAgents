@@ -21,6 +21,9 @@ def sample_event(**overrides: Any) -> AuditEvent:
         "requires_approval": False,
         "matched_rule_ids": ("analysts-read-payroll",),
         "source": "python_callable",
+        "request_id": "request-123",
+        "execution_id": "run-456",
+        "tool_name": "read_payroll",
         "policy_id": "payroll-access",
         "policy_version": "1.2.0",
         "policy_digest": "a" * 64,
@@ -80,6 +83,9 @@ def test_audit_event_serialization_redacts_identifiers_by_default() -> None:
     assert "principal_roles" not in payload
     assert "resource" not in payload
     assert "matched_rule_ids" not in payload
+    assert "request_id" not in payload
+    assert "execution_id" not in payload
+    assert "tool_name" not in payload
     assert "alice" not in encoded
     assert "payroll:employee-7" not in encoded
 
@@ -91,6 +97,9 @@ def test_audit_event_can_explicitly_serialize_sensitive_fields() -> None:
     assert payload["principal_roles"] == ["analyst", "hr"]
     assert payload["resource"] == "payroll:employee-7"
     assert payload["matched_rule_ids"] == ["analysts-read-payroll"]
+    assert payload["request_id"] == "request-123"
+    assert payload["execution_id"] == "run-456"
+    assert payload["tool_name"] == "read_payroll"
 
 
 @pytest.mark.parametrize("duration_ms", [-1, float("nan"), float("inf"), True])
@@ -182,6 +191,9 @@ def test_opentelemetry_callback_can_explicitly_include_sensitive_attributes(
     assert attributes["enduser.id"] == "alice"
     assert attributes["authorization.resource"] == "payroll:employee-7"
     assert attributes["authorization.matched_rule_ids"] == ("analysts-read-payroll",)
+    assert attributes["authorization.request_id"] == "request-123"
+    assert attributes["authorization.execution_id"] == "run-456"
+    assert attributes["authorization.tool_name"] == "read_payroll"
     assert attributes["authorization.policy_digest"] == "a" * 64
 
 
