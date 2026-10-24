@@ -104,3 +104,21 @@ def test_store_rejects_naive_clock_and_invalid_identifiers(tmp_path: Path) -> No
         store.consume("token", "fingerprint", "")
     assert store.consume("", "fingerprint", "reviewer") is False
     store.close()
+
+def test_database_failures_propagate_and_transactions_are_rolled_back(
+    tmp_path: Path,
+) -> None:
+    issue_store = SQLiteApprovalStore(tmp_path / "issue-failure.sqlite3")
+    issue_store._connection.execute("DROP TABLE approval_grants")
+    with pytest.raises(sqlite3.OperationalError, match="no such table"):
+        issue_store.issue("fingerprint-1", "reviewer-1")
+    assert issue_store._connection.in_transaction is False
+    issue_store.close()
+
+    consume_store = SQLiteApprovalStore(":memory:")
+    consume_store._connection.execute("DROP TABLE approval_grants")
+    with pytest.raises(sqlite3.OperationalError, match="no such table"):
+        consume_store.consume("opaque-token", "fingerprint-2", "reviewer-2")
+    assert consume_store._connection.in_transaction is False
+    consume_store.close()
+
