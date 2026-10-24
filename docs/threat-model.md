@@ -2,7 +2,7 @@
 
 ## Scope
 
-LangGraph-SecureAgents provides deterministic policy evaluation and optional enforcement at Python-callable and LangChain agent tool-call boundaries. It is designed to reduce accidental or model-induced access to tools and resources that the application has explicitly protected.
+LangGraph-SecureAgents provides deterministic policy evaluation and optional enforcement at Python-callable and LangChain agent tool-call boundaries, plus explicitly decorated MCP server tool-handler boundaries when the optional MCP adapter is installed. It is designed to reduce accidental or model-induced access to tools and resources that the application has explicitly protected. The MCP adapter does not automatically protect MCP resources, prompts, or handlers that have not been decorated.
 
 This document describes the intended trust boundaries. It is not a security audit or a claim that every integration is safe by default.
 
