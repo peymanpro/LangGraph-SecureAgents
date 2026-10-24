@@ -45,7 +45,9 @@ Downstream APIs, databases, and storage systems should continue enforcing their 
 
 ### Auditing
 
-When an audit callback is configured, callback failure stops protected execution (fail-closed behavior). Without a callback, the library does not persist audit logs. Applications must decide how to secure, retain, and monitor audit events.
+The library supports both the legacy request/decision callback and structured AuditEvent callbacks. Structured serializers and the optional OpenTelemetry adapter redact principal/resource identifiers, matched rule IDs, policy digests, and correlation IDs by default. A custom callback receives the full event object, including sensitive identifiers, and must send it only to a trusted sink. Request attribute values and raw tool arguments are not copied into the event.
+
+Configured callbacks run synchronously before a protected callable or tool handler executes. Callback failure stops protected execution (fail-closed behavior). For approval-required middleware calls, the structured callback records the pending policy decision before the interrupt and the final approval outcome after resume. The host application is responsible for durable storage, access control, retention, retries, monitoring, and tamper-evident protection. Without a configured callback, the library does not persist audit logs.
 
 ## Authorization semantics
 

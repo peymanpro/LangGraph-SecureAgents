@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from functools import wraps
 from inspect import iscoroutinefunction
+from time import perf_counter
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from ._resolver_safety import call_resolver_without_mutation
+from .audit import AuditEvent, AuditEventCallback
 from .models import AccessRequest, Decision, JSONValue, Principal
 from .policy import PolicyEngine
 
@@ -17,6 +19,8 @@ AuditCallback = Callable[[AccessRequest, Decision], None]
 ResourceResolver = Callable[P, str]
 ResourceAttributesResolver = Callable[[str], Mapping[str, JSONValue]]
 ContextResolver = Callable[[], Mapping[str, JSONValue]]
+RequestIdResolver = Callable[P, str]
+ExecutionIdResolver = Callable[[], str]
 
 
 class AuthorizationDenied(PermissionError):
@@ -39,6 +43,12 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    request_id_resolver: RequestIdResolver[P] | None = None,
+    execution_id_resolver: ExecutionIdResolver | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, Awaitable[R]]: ...
 
 
@@ -53,6 +63,12 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    request_id_resolver: RequestIdResolver[P] | None = None,
+    execution_id_resolver: ExecutionIdResolver | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, R]: ...
 
 
@@ -66,6 +82,12 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    request_id_resolver: RequestIdResolver[P] | None = None,
+    execution_id_resolver: ExecutionIdResolver | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, Any]:
     """Return a callable that authorizes immediately before protected execution.
 
@@ -98,6 +120,12 @@ def protect_callable(
         raise TypeError("context_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
+    if audit_event_callback is not None and not callable(audit_event_callback):
+        raise TypeError("audit_event_callback must be callable")
+    if request_id_resolver is not None and not callable(request_id_resolver):
+        raise TypeError("request_id_resolver must be callable")
+    if execution_id_resolver is not None and not callable(execution_id_resolver):
+        raise TypeError("execution_id_resolver must be callable")
     if not isinstance(action, str) or not action.strip() or action.strip() == "*":
         raise ValueError("action must be a non-empty concrete action")
 
@@ -106,6 +134,7 @@ def protect_callable(
         resource_name = getattr(function, "__name__", type(function).__name__)
 
     def authorize(*args: P.args, **kwargs: P.kwargs) -> None:
+        started = perf_counter()
         principal = principal_resolver()
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -136,6 +165,31 @@ def protect_callable(
             context=context_attributes,
         )
         decision = policy.evaluate(request)
+        duration_ms = (perf_counter() - started) * 1000.0
+
+        if audit_event_callback is not None:
+            request_id = (
+                None
+                if request_id_resolver is None
+                else call_resolver_without_mutation(request_id_resolver, *args, **kwargs)
+            )
+            execution_id = (
+                None
+                if execution_id_resolver is None
+                else call_resolver_without_mutation(execution_id_resolver)
+            )
+            event = AuditEvent.from_decision(
+                request,
+                decision,
+                source="python_callable",
+                duration_ms=duration_ms,
+                request_id=request_id,
+                execution_id=execution_id,
+                policy_id=policy_id,
+                policy_version=policy_version,
+                policy_digest=policy_digest,
+            )
+            audit_event_callback(event)
 
         if audit_callback is not None:
             audit_callback(request, decision)

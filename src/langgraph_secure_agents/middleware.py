@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 from collections.abc import Callable, Mapping
+from time import perf_counter
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, wrap_tool_call
@@ -13,6 +14,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
 from ._resolver_safety import call_resolver_without_mutation
+from .audit import AuditEvent, AuditEventCallback
 from .models import (
     AccessRequest,
     AttributeReference,
@@ -157,6 +159,10 @@ def create_authorization_middleware(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
     approval_validator: ApprovalValidator | None = None,
 ) -> Any:
     """Create middleware that authorizes every tool call before execution.
@@ -209,11 +215,14 @@ def create_authorization_middleware(
         raise TypeError("context_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
+    if audit_event_callback is not None and not callable(audit_event_callback):
+        raise TypeError("audit_event_callback must be callable")
     if approval_validator is not None and not callable(approval_validator):
         raise TypeError("approval_validator must be callable")
 
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
+        started = perf_counter()
         tool_call = getattr(request, "tool_call", None)
         if not isinstance(tool_call, Mapping):
             raise TypeError("middleware request must contain a tool_call mapping")
@@ -229,6 +238,12 @@ def create_authorization_middleware(
 
         runtime = getattr(request, "runtime", None)
         runtime_context = getattr(runtime, "context", None)
+        request_id = (
+            tool_call_id.strip() if isinstance(tool_call_id, str) and tool_call_id.strip() else None
+        )
+        execution_info = getattr(runtime, "execution_info", None)
+        task_id = getattr(execution_info, "task_id", None)
+        execution_id = task_id.strip() if isinstance(task_id, str) and task_id.strip() else None
         principal = principal_resolver(runtime_context)
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -266,7 +281,29 @@ def create_authorization_middleware(
         )
         decision = policy.evaluate(access_request)
 
+        def emit_audit(outcome: Decision, *, include_legacy: bool = True) -> None:
+            duration_ms = (perf_counter() - started) * 1000.0
+            if audit_event_callback is not None:
+                event = AuditEvent.from_decision(
+                    access_request,
+                    outcome,
+                    source="langchain_tool",
+                    duration_ms=duration_ms,
+                    request_id=request_id,
+                    execution_id=execution_id,
+                    tool_name=tool_name,
+                    policy_id=policy_id,
+                    policy_version=policy_version,
+                    policy_digest=policy_digest,
+                )
+                audit_event_callback(event)
+            if include_legacy and audit_callback is not None:
+                audit_callback(access_request, outcome)
+
         if decision.requires_approval:
+            # Record the policy decision before interrupting so pending approvals are
+            # observable even if the graph is never resumed.
+            emit_audit(decision, include_legacy=False)
             if not isinstance(tool_call_id, str) or not tool_call_id:
                 raise ValueError("approval-required tool calls must include a tool-call id")
 
@@ -321,8 +358,7 @@ def create_authorization_middleware(
                     reason=DecisionReason.APPROVAL_INVALID,
                     matched_rule_ids=decision.matched_rule_ids,
                 )
-                if audit_callback is not None:
-                    audit_callback(access_request, outcome)
+                emit_audit(outcome)
                 return ToolMessage(
                     content="Approval response invalid; tool was not executed.",
                     tool_call_id=tool_call_id,
@@ -335,8 +371,7 @@ def create_authorization_middleware(
                     reason=DecisionReason.APPROVAL_DENIED,
                     matched_rule_ids=decision.matched_rule_ids,
                 )
-                if audit_callback is not None:
-                    audit_callback(access_request, outcome)
+                emit_audit(outcome)
                 return ToolMessage(
                     content="Human approval denied.",
                     tool_call_id=tool_call_id,
@@ -348,12 +383,10 @@ def create_authorization_middleware(
                 reason=DecisionReason.HUMAN_APPROVED,
                 matched_rule_ids=decision.matched_rule_ids,
             )
-            if audit_callback is not None:
-                audit_callback(access_request, outcome)
+            emit_audit(outcome)
             return handler(request)
 
-        if audit_callback is not None:
-            audit_callback(access_request, decision)
+        emit_audit(decision)
 
         if not decision.allowed:
             if not isinstance(tool_call_id, str) or not tool_call_id:

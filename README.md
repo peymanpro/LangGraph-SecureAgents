@@ -17,6 +17,7 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and c
 - **Deterministic policy evaluation** with default-deny behavior and explicit-deny rules taking precedence over allow rules.
 - **Role- and attribute-based access control (RBAC/ABAC)**, including conditions over trusted principal, resource, and request-context attributes.
 - **Versioned policy bundles** that load declarative JSON/YAML rules, lint risky scopes, explain decisions, and simulate proposed changes against a baseline.
+- **Structured authorization audit events** with privacy-conscious serialization and an optional OpenTelemetry adapter.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
 - **Human-approval interrupts** for selected sensitive agent actions.
@@ -61,7 +62,13 @@ For the optional LangChain/LangGraph agent middleware:
 python -m pip install "langgraph-secure-agents[langchain-agents]"
 ```
 
-The core policy engine does not require an LLM provider or the optional agent middleware dependencies.
+For the optional OpenTelemetry audit adapter:
+
+```bash
+python -m pip install "langgraph-secure-agents[opentelemetry]"
+```
+
+The core policy engine does not require an LLM provider, the optional agent middleware, or telemetry dependencies.
 
 ## Quick start: evaluate an authorization policy
 
@@ -196,6 +203,35 @@ The report summarizes allowed, denied, approval-required, and changed outcomes w
 
 The repository includes [a payroll policy in YAML](examples/policies/payroll.yaml) and a runnable [bundle lint, explanation, and simulation example](examples/policy_bundle_workflow.py). See the full [policy bundle guide](docs/policy-bundles.md) for the format, diagnostic codes, and deployment trust boundaries.
 
+## Structured audit events and OpenTelemetry
+
+Use `audit_event_callback` to receive a typed `AuditEvent` for each authorization outcome at a protected callable or agent-tool boundary. Events include a unique event ID, UTC timestamp, source, action, resource, decision reason, matched-rule IDs, evaluation duration, and optional policy bundle metadata. Middleware events also carry the tool-call ID, runtime task ID, and tool name when available; callable guards can resolve trusted request and execution IDs.
+
+```python
+from langgraph_secure_agents import PolicyBundle, create_opentelemetry_callback
+from langgraph_secure_agents.middleware import create_authorization_middleware
+
+policy_bundle = PolicyBundle.from_file("policies/payroll.yaml")
+audit_to_otel = create_opentelemetry_callback()
+
+authorization_middleware = create_authorization_middleware(
+    policy_bundle.engine,
+    principal_resolver=resolve_principal,
+    audit_event_callback=audit_to_otel,
+    policy_id=policy_bundle.policy_id,
+    policy_version=policy_bundle.version,
+    policy_digest=policy_bundle.digest,
+)
+```
+
+The adapter attaches an `authorization.decision` event to the current recording span; if no recording span is active, it creates a short span for the event. OpenTelemetry is optional and imported only when the adapter is configured. The original `audit_callback(request, decision)` remains supported.
+
+**Privacy and failure behavior:** `AuditEvent.to_dict()`, `to_json()`, and the OpenTelemetry adapter omit principal IDs, roles, resource identifiers, matched rule IDs, and the policy digest by default. Set `include_sensitive=True` only when the destination is trusted to store that information. The event object delivered to a custom callback still contains its principal/resource identifiers, so custom sinks must protect them. Request attribute values, tool arguments, and model-generated content are not copied into the event. If a configured audit callback raises, the protected operation does not run.
+
+For approval-required tool calls, the middleware records the policy's `approval_required` decision before interrupting. After resume, it emits a second event for the final `human_approved`, `approval_denied`, or `approval_invalid` outcome. This distinguishes the policy decision from the human-review result. Audit callbacks are synchronous and should hand events to a durable sink efficiently; the library does not provide storage or delivery retries.
+
+See the [audit event guide](docs/audit-events.md) for the event schema, redaction contract, callback behavior, and operational guidance.
+
 ## Protect an existing Python callable
 
 Wrap a function that accesses a protected resource. The resolver must identify the same resource that the function actually accesses.
@@ -292,12 +328,13 @@ mypy src
 pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package and optional middleware extra.
+CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional middleware extra, and optional OpenTelemetry extra.
 
 ## Project documentation
 
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
 - [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, explanation, and simulation.
+- [Audit events](docs/audit-events.md) — structured decision events, privacy controls, and OpenTelemetry integration.
 - [Security policy](SECURITY.md) — project status and vulnerability reporting.
 - [Changelog](CHANGELOG.md) — user-facing changes by release.
 - [Releasing](docs/releasing.md) — maintainer information about automated releases.

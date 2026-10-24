@@ -194,4 +194,23 @@ jobs:
           )
           assert callable(middleware.wrap_tool_call)
           print("Optional middleware extra smoke test passed.")
+      - name: Smoke-test optional OpenTelemetry audit extra
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-otel
+          /tmp/langgraph-secure-agents-otel/bin/python -m pip install ".[opentelemetry]"
+          /tmp/langgraph-secure-agents-otel/bin/python - <<'PY'
+          from langgraph_secure_agents import AuditEvent, DecisionReason, create_opentelemetry_callback
+
+          event = AuditEvent(
+              principal_id="smoke-user",
+              principal_roles=(),
+              action="read",
+              resource="reports",
+              decision_reason=DecisionReason.DEFAULT_DENY,
+              allowed=False,
+              requires_approval=False,
+          )
+          callback = create_opentelemetry_callback()
+          callback(event)
+          print("Optional OpenTelemetry audit extra smoke test passed.")
           PY
