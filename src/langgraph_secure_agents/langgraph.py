@@ -15,7 +15,7 @@ from langgraph.runtime import Runtime
 
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
-from .guard import AuthorizationDenied, AuditCallback
+from .guard import AuditCallback, AuthorizationDenied
 from .models import AccessRequest, JSONValue, Principal, normalize_resource_id
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
