@@ -203,6 +203,26 @@ The report summarizes allowed, denied, approval-required, and changed outcomes w
 
 The repository includes [a payroll policy in YAML](examples/policies/payroll.yaml) and a runnable [bundle lint, explanation, and simulation example](examples/policy_bundle_workflow.py). See the full [policy bundle guide](docs/policy-bundles.md) for the format, diagnostic codes, and deployment trust boundaries.
 
+### Atomic policy rollout with `PolicyRegistry`
+
+`PolicyRegistry` publishes fully validated policy snapshots atomically within one process. Pass the registry itself to a guard or middleware so each invocation captures one consistent policy and its matching metadata:
+
+```python
+from langgraph_secure_agents import PolicyBundle, PolicyRegistry
+
+registry = PolicyRegistry(PolicyBundle.from_file("policies/payroll.yaml"))
+current = registry.snapshot()
+
+deployed = registry.reload(
+    "policies/payroll-v2.yaml",
+    expected_generation=current.generation,
+)
+# If a rollout needs to be reversed, rollback publishes the prior snapshot
+# as a new generation: registry.rollback(expected_generation=deployed.generation)
+```
+
+The registry is process-local: it does not persist history or synchronize workers. Coordinate rollouts across processes and reload trusted policy files after restart. Generation checks prevent stale updates within the registry, but do not authenticate deployers or sign policy bundles. See the [policy bundle guide](docs/policy-bundles.md).
+
 ## Structured audit events and OpenTelemetry
 
 Use `audit_event_callback` to receive a typed `AuditEvent` for each authorization outcome at a protected callable or agent-tool boundary. Events include a unique event ID, UTC timestamp, source, action, resource, decision reason, matched-rule IDs, evaluation duration, and optional policy bundle metadata. Middleware events also carry the tool-call ID, runtime task ID, and tool name when available; callable guards can resolve trusted request and execution IDs.
@@ -231,6 +251,27 @@ The adapter attaches an `authorization.decision` event to the current recording 
 For approval-required tool calls, the middleware records the policy's `approval_required` decision before interrupting. After resume, it emits a second event for the final `human_approved`, `approval_denied`, or `approval_invalid` outcome. This distinguishes the policy decision from the human-review result. For synchronous durable recording, pass a `SQLiteAuditSink` as `audit_event_callback`; persistence errors fail closed. It does not create a background retry queue or retention policy. See the [audit guide](docs/audit-events.md).
 
 See the [audit event guide](docs/audit-events.md) for the event schema, redaction contract, callback behavior, and operational guidance.
+
+### Durable SQLite audit storage
+
+When an audit record must be committed before protected code runs, use `SQLiteAuditSink` as the structured callback:
+
+```python
+from langgraph_secure_agents import SQLiteAuditSink
+from langgraph_secure_agents.middleware import create_authorization_middleware
+
+audit_sink = SQLiteAuditSink("authorization-audit.sqlite3")
+authorization_middleware = create_authorization_middleware(
+    policy,
+    principal_resolver=resolve_principal,
+    audit_event_callback=audit_sink,
+)
+
+# Check the integrity of the retained hash chain when operationally appropriate.
+integrity = audit_sink.verify_integrity()
+```
+
+Writes are synchronous; a persistence error propagates and prevents the protected handler from running. The hash chain can reveal individual record edits, deletion, or reordering, but it is not tamper-proof if someone can rewrite the entire database and recompute the chain. The sink has no automatic retention, archive, or retry queue. Restrict database access, back it up, monitor capacity, define retention procedures, and consider anchoring chain heads in a separately controlled system. See the [audit guide](docs/audit-events.md).
 
 ## Protect an existing Python callable
 
@@ -293,6 +334,23 @@ authorization_middleware = create_authorization_middleware(
 Pass `authorization_middleware` to the agent's middleware configuration. `resolve_principal` must construct a `Principal` from trusted runtime context. By default, the policy action is `execute` and the resource is the tool name; custom resolvers can map tool calls to domain-specific actions and resources. A denied call returns an error tool message without invoking the tool handler.
 
 For sensitive actions, a policy can use `Effect.REQUIRE_APPROVAL` to pause execution for a human decision. This requires LangGraph 1.2 or newer with an active checkpointer. The host must still authenticate the reviewer and secure the resume endpoint. Configure `SQLiteApprovalStore` and `approval_reviewer_resolver` to require a short-lived opaque token bound to the exact request fingerprint and trusted reviewer identity. The token is consumed atomically before the handler runs. See the [approval-store guide](docs/approval-store.md).
+
+### Configure durable, one-time approval grants
+
+```python
+from langgraph_secure_agents import SQLiteApprovalStore
+from langgraph_secure_agents.middleware import create_authorization_middleware
+
+approval_store = SQLiteApprovalStore("authorization-approvals.sqlite3")
+authorization_middleware = create_authorization_middleware(
+    policy,
+    principal_resolver=resolve_principal,
+    approval_store=approval_store,
+    approval_reviewer_resolver=resolve_trusted_reviewer,
+)
+```
+
+`resolve_trusted_reviewer` must derive the reviewer from authenticated, server-side state—not from model output or the approval payload. The host must verify that the reviewer may approve the exact pending operation before issuing a token. Use a persistent database path when grants must survive restarts, keep token lifetimes short, and never reuse operation IDs or request fingerprints. Expired rows are not deleted automatically; call `approval_store.purge_expired()` according to your retention requirements. The store binds and consumes grants, but does not authenticate reviewers or protect the resume endpoint.
 
 ## Security responsibilities
 
