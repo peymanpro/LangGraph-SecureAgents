@@ -240,8 +240,12 @@ def create_authorization_middleware(
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
         started = perf_counter()
-        policy_snapshot = policy.snapshot() if isinstance(policy, PolicyRegistry) else None
-        active_policy = policy_snapshot.engine if policy_snapshot is not None else policy
+        if isinstance(policy, PolicyRegistry):
+            policy_snapshot = policy.snapshot()
+            active_policy = policy_snapshot.engine
+        else:
+            policy_snapshot = None
+            active_policy = policy
         tool_call = getattr(request, "tool_call", None)
         if not isinstance(tool_call, Mapping):
             raise TypeError("middleware request must contain a tool_call mapping")
