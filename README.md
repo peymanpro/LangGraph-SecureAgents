@@ -16,11 +16,11 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and c
 
 - **Deterministic policy evaluation** with default-deny behavior and explicit-deny rules taking precedence over allow rules.
 - **Role- and attribute-based access control (RBAC/ABAC)**, including conditions over trusted principal, resource, and request-context attributes.
-- **Versioned policy bundles** that load declarative JSON/YAML rules, lint risky scopes, explain decisions, and simulate proposed changes against a baseline.
-- **Structured authorization audit events** with privacy-conscious serialization and an optional OpenTelemetry adapter.
+- **Versioned policy bundles** that load declarative JSON/YAML rules, lint risky scopes, explain decisions, and simulate proposed changes against a baseline. An in-process policy registry adds atomic publication, generation checks, and rollback.
+- **Structured authorization audit events** with privacy-conscious serialization, an optional OpenTelemetry adapter, and a durable SQLite sink with a verifiable hash chain.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
-- **Human-approval interrupts** for selected sensitive agent actions.
+- **Human-approval interrupts** for selected sensitive agent actions, with SQLite-backed expiring approval tokens that are bound to a reviewer and consumed once.
 - **Fail-closed controls** when configured audit callbacks or authorization-related checks fail.
 
 ## How it fits into an application
@@ -228,7 +228,7 @@ The adapter attaches an `authorization.decision` event to the current recording 
 
 **Privacy and failure behavior:** `AuditEvent.to_dict()`, `to_json()`, and the OpenTelemetry adapter omit principal IDs, roles, resource identifiers, matched rule IDs, and the policy digest by default. Set `include_sensitive=True` only when the destination is trusted to store that information. The event object delivered to a custom callback still contains its principal/resource identifiers, so custom sinks must protect them. Request attribute values, tool arguments, and model-generated content are not copied into the event. If a configured audit callback raises, the protected operation does not run.
 
-For approval-required tool calls, the middleware records the policy's `approval_required` decision before interrupting. After resume, it emits a second event for the final `human_approved`, `approval_denied`, or `approval_invalid` outcome. This distinguishes the policy decision from the human-review result. Audit callbacks are synchronous and should hand events to a durable sink efficiently; the library does not provide storage or delivery retries.
+For approval-required tool calls, the middleware records the policy's `approval_required` decision before interrupting. After resume, it emits a second event for the final `human_approved`, `approval_denied`, or `approval_invalid` outcome. This distinguishes the policy decision from the human-review result. For synchronous durable recording, pass a `SQLiteAuditSink` as `audit_event_callback`; persistence errors fail closed. It does not create a background retry queue or retention policy. See the [audit guide](docs/audit-events.md).
 
 See the [audit event guide](docs/audit-events.md) for the event schema, redaction contract, callback behavior, and operational guidance.
 
@@ -292,7 +292,7 @@ authorization_middleware = create_authorization_middleware(
 
 Pass `authorization_middleware` to the agent's middleware configuration. `resolve_principal` must construct a `Principal` from trusted runtime context. By default, the policy action is `execute` and the resource is the tool name; custom resolvers can map tool calls to domain-specific actions and resources. A denied call returns an error tool message without invoking the tool handler.
 
-For sensitive actions, a policy can use `Effect.REQUIRE_APPROVAL` to pause execution for a human decision. This requires LangGraph 1.2 or newer with an active checkpointer. The host application must authenticate the reviewer, secure the resume endpoint, and enforce one-time approval consumption for side-effecting operations. An approval fingerprint alone is not proof of reviewer identity or a one-time token.
+For sensitive actions, a policy can use `Effect.REQUIRE_APPROVAL` to pause execution for a human decision. This requires LangGraph 1.2 or newer with an active checkpointer. The host must still authenticate the reviewer and secure the resume endpoint. Configure `SQLiteApprovalStore` and `approval_reviewer_resolver` to require a short-lived opaque token bound to the exact request fingerprint and trusted reviewer identity. The token is consumed atomically before the handler runs. See the [approval-store guide](docs/approval-store.md).
 
 ## Security responsibilities
 
@@ -333,8 +333,9 @@ CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and
 ## Project documentation
 
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
-- [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, explanation, and simulation.
-- [Audit events](docs/audit-events.md) — structured decision events, privacy controls, and OpenTelemetry integration.
+- [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, simulation, and atomic policy-registry operations.
+- [Approval store](docs/approval-store.md) — expiring one-time grants and trusted reviewer binding.
+- [Audit events](docs/audit-events.md) — structured decision events, SQLite persistence, integrity verification, privacy controls, and OpenTelemetry integration.
 - [Security policy](SECURITY.md) — project status and vulnerability reporting.
 - [Changelog](CHANGELOG.md) — user-facing changes by release.
 - [Releasing](docs/releasing.md) — maintainer information about automated releases.
