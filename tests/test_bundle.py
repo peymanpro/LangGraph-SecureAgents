@@ -188,10 +188,19 @@ def test_bundle_rejects_unsupported_schema_version(schema_version: object) -> No
         PolicyBundle.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", ["", "latest", "1.0", "01.0.0"])
+@pytest.mark.parametrize(
+    "version",
+    ["", "latest", "1.0", "01.0.0", "1.0.0-", "1.0.0-alpha..beta", "1.0.0-01", "1.0.0+build..metadata"],
+)
 def test_bundle_requires_semantic_policy_version(version: str) -> None:
     with pytest.raises(ValueError, match="semantic version"):
         PolicyBundle(policy_id="sample", version=version, rules=())
+
+
+def test_bundle_accepts_semver_prerelease_and_build_metadata() -> None:
+    bundle = PolicyBundle(policy_id="sample", version="1.2.3-alpha.1+build.5", rules=())
+
+    assert bundle.version == "1.2.3-alpha.1+build.5"
 
 
 def test_bundle_metadata_and_rules_are_validated() -> None:
@@ -329,6 +338,46 @@ def test_lint_flags_wildcard_allow_and_universal_principal() -> None:
     assert {item.code for item in findings} == {"SEC001", "SEC002"}
     assert all(item.rule_id == "all-access" for item in findings)
     assert all(item.severity.value == "warning" for item in findings)
+
+
+def test_lint_flags_allow_rule_with_no_principal_restrictions() -> None:
+    bundle = PolicyBundle(
+        policy_id="unrestricted-access",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="read-every-report",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"reports"}),
+            ),
+        ),
+    )
+
+    findings = bundle.lint()
+
+    assert [(item.code, item.rule_id) for item in findings] == [
+        ("SEC002", "read-every-report")
+    ]
+
+
+def test_lint_respects_role_restriction_with_wildcard_principal_id() -> None:
+    bundle = PolicyBundle(
+        policy_id="role-scoped-access",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="analysts-read-reports",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"reports"}),
+                principal_ids=frozenset({"*"}),
+                roles=frozenset({"analyst"}),
+            ),
+        ),
+    )
+
+    assert bundle.lint() == ()
 
 
 def test_lint_reports_broad_approval_scope_as_informational() -> None:
