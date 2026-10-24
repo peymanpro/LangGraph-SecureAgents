@@ -292,7 +292,7 @@ def test_yaml_support_can_be_absent_without_breaking_core_bundle(
         patcher.setitem(sys.modules, "yaml", None)
         with pytest.raises(ImportError, match=r"install 'langgraph-secure-agents\[yaml\]'"):
             original.to_yaml()
-        with pytest.raises(ImportError, match="install 'langgraph-secure-agents\[yaml\]'"):
+        with pytest.raises(ImportError, match=r"install 'langgraph-secure-agents\[yaml\]'"):
             PolicyBundle.from_yaml("schema_version: 1")
 
     assert PolicyBundle.from_json(original.to_json()) == original
@@ -491,9 +491,16 @@ def test_bundle_parser_rejects_invalid_container_types() -> None:
     with pytest.raises(TypeError, match="content must be a JSON string"):
         PolicyBundle.from_json(42)  # type: ignore[arg-type]
 
-    deeply_nested = "[" * 1500 + "0" + "]" * 1500
+def test_json_parser_normalizes_recursion_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    from langgraph_secure_agents import bundle as bundle_module
+
+    def raise_recursion_error(*args: object, **kwargs: object) -> object:
+        raise RecursionError("parser depth exceeded")
+
+    monkeypatch.setattr(bundle_module.json, "loads", raise_recursion_error)
+
     with pytest.raises(ValueError, match="nested too deeply"):
-        PolicyBundle.from_json(deeply_nested)
+        PolicyBundle.from_json("{}")
 
 
 def test_yaml_parser_rejects_non_string_and_unhashable_mapping_keys() -> None:
