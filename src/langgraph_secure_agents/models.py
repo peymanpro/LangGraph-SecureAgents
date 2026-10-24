@@ -36,12 +36,7 @@ def _normalized_set(
 
 
 JSONScalar: TypeAlias = str | int | float | bool | None
-JSONValue: TypeAlias = (
-    JSONScalar
-    | list["JSONValue"]
-    | tuple["JSONValue", ...]
-    | Mapping[str, "JSONValue"]
-)
+JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | tuple["JSONValue", ...] | Mapping[str, "JSONValue"]
 
 
 def _freeze_attribute_value(value: object, *, depth: int = 0) -> JSONValue:
@@ -136,10 +131,7 @@ def _validate_attribute_path(path: str, field_name: str = "attribute path") -> s
         )
         or (
             root == "resource"
-            and (
-                parts[1:2] == ["id"]
-                or (len(parts) >= 3 and parts[1] == "attributes")
-            )
+            and (parts[1:2] == ["id"] or (len(parts) >= 3 and parts[1] == "attributes"))
         )
         or (root == "context" and len(parts) >= 2)
     )
@@ -149,7 +141,10 @@ def _validate_attribute_path(path: str, field_name: str = "attribute path") -> s
             "principal.attributes, resource.id, resource.attributes, or context"
         )
     if root in {"principal", "resource"} and parts[1] in {
-        "principal_id", "roles", "id", "attributes"
+        "principal_id",
+        "roles",
+        "id",
+        "attributes",
     }:
         if root == "principal" and parts[1] in {"principal_id", "roles"} and len(parts) != 2:
             raise ValueError(f"{field_name} cannot traverse a built-in principal field")
