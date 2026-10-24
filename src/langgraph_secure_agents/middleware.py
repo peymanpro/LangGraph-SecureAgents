@@ -18,6 +18,7 @@ from .models import (
     AttributeReference,
     Decision,
     DecisionReason,
+    JSONValue,
     PolicyRule,
     Principal,
 )
@@ -26,8 +27,8 @@ from .policy import PolicyEngine
 PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
 ResourceResolver = Callable[[str, Mapping[str, Any]], str]
-ResourceAttributesResolver = Callable[[str], Mapping[str, object]]
-ContextResolver = Callable[[object], Mapping[str, object]]
+ResourceAttributesResolver = Callable[[str], Mapping[str, JSONValue]]
+ContextResolver = Callable[[object], Mapping[str, JSONValue]]
 AuditCallback = Callable[[AccessRequest, Decision], None]
 ApprovalValidator = Callable[[Mapping[str, Any], AccessRequest, str], bool]
 
