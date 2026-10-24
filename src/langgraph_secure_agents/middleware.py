@@ -238,6 +238,14 @@ def create_authorization_middleware(
 
         runtime = getattr(request, "runtime", None)
         runtime_context = getattr(runtime, "context", None)
+        request_id = (
+            tool_call_id.strip()
+            if isinstance(tool_call_id, str) and tool_call_id.strip()
+            else None
+        )
+        execution_info = getattr(runtime, "execution_info", None)
+        task_id = getattr(execution_info, "task_id", None)
+        execution_id = task_id.strip() if isinstance(task_id, str) and task_id.strip() else None
         principal = principal_resolver(runtime_context)
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -283,6 +291,9 @@ def create_authorization_middleware(
                     outcome,
                     source="langchain_tool",
                     duration_ms=duration_ms,
+                    request_id=request_id,
+                    execution_id=execution_id,
+                    tool_name=tool_name,
                     policy_id=policy_id,
                     policy_version=policy_version,
                     policy_digest=policy_digest,
