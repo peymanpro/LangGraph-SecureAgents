@@ -4,10 +4,10 @@ from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import cast
 
-import pytest
 from mcp import Client
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
+import pytest
 
 from langgraph_secure_agents import (
     AttributeCondition,
