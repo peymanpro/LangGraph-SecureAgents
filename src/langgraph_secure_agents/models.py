@@ -113,6 +113,9 @@ def _validate_attribute_path(path: str, field_name: str = "attribute path") -> s
     if any(not part or part.strip() != part for part in parts):
         raise ValueError(f"{field_name} contains an empty or malformed path segment")
 
+    if any(part.startswith("__") or part.endswith("__") for part in parts):
+        raise ValueError(f"{field_name} cannot contain Python special-attribute names")
+
     root = parts[0]
     valid = (
         (
