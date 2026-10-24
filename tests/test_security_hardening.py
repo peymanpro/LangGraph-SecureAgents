@@ -42,7 +42,11 @@ def approval_bundle(*, requires_approval: bool) -> PolicyBundle:
 
 def request(*, context: object = None, tool_call_id: str = "call-1") -> SimpleNamespace:
     return SimpleNamespace(
-        tool_call={"name": "read_payroll", "args": {"employee_id": "employee-7"}, "id": tool_call_id},
+        tool_call={
+            "name": "read_payroll",
+            "args": {"employee_id": "employee-7"},
+            "id": tool_call_id,
+        },
         runtime=SimpleNamespace(
             context=context,
             execution_info=SimpleNamespace(
