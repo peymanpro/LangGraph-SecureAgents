@@ -58,9 +58,7 @@ def test_numeric_equality_accepts_int_and_float_without_bool_coercion() -> None:
                 actions=frozenset({"read"}),
                 resources=frozenset({"reports"}),
                 roles=frozenset({"analyst"}),
-                conditions=(
-                    AttributeCondition("context.risk_score", ConditionOperator.EQ, 1.0),
-                ),
+                conditions=(AttributeCondition("context.risk_score", ConditionOperator.EQ, 1.0),),
             )
         ]
     )
