@@ -85,6 +85,8 @@ def test_callable_emits_structured_event_before_protected_execution() -> None:
         policy=_policy(),
         principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
         audit_event_callback=lambda event: (events.append(event), order.append("audit")),
+        request_id_resolver=lambda: "request-123",
+        execution_id_resolver=lambda: "run-456",
         policy_id="payroll-access",
         policy_version="1.2.0",
         policy_digest="a" * 64,
@@ -99,6 +101,9 @@ def test_callable_emits_structured_event_before_protected_execution() -> None:
     assert events[0].policy_id == "payroll-access"
     assert events[0].policy_version == "1.2.0"
     assert events[0].policy_digest == "a" * 64
+    assert events[0].request_id == "request-123"
+    assert events[0].execution_id == "run-456"
+    assert events[0].tool_name is None
     assert events[0].duration_ms is not None and events[0].duration_ms >= 0
 
 
@@ -144,6 +149,9 @@ def test_middleware_emits_structured_event_and_preserves_legacy_callback() -> No
     assert events[0].action == "execute"
     assert events[0].resource == "read_payroll"
     assert events[0].allowed is True
+    assert events[0].request_id == "call-1"
+    assert events[0].execution_id == "task-1"
+    assert events[0].tool_name == "read_payroll"
     assert events[0].policy_digest == "a" * 64
     assert len(legacy_decisions) == 1
     payload = events[0].to_dict()
