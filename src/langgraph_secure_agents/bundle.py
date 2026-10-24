@@ -229,8 +229,7 @@ class SimulationReport:
     @property
     def denied(self) -> int:
         return sum(
-            not case.decision.allowed and not case.decision.requires_approval
-            for case in self.cases
+            not case.decision.allowed and not case.decision.requires_approval for case in self.cases
         )
 
     @property
@@ -458,10 +457,7 @@ class PolicyBundle:
                         ),
                     )
                 )
-            if (
-                rule.effect is Effect.REQUIRE_APPROVAL
-                and broad_selectors
-            ):
+            if rule.effect is Effect.REQUIRE_APPROVAL and broad_selectors:
                 findings.append(
                     PolicyDiagnostic(
                         code="APR001",
@@ -566,6 +562,7 @@ class PolicyBundle:
             raise ImportError(
                 "YAML support requires PyYAML; install 'langgraph-secure-agents[yaml]'"
             ) from exc
+
         class UniqueKeyLoader(yaml.SafeLoader):
             pass
 
