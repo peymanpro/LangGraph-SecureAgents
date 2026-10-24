@@ -14,6 +14,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
 from ._resolver_safety import call_resolver_without_mutation
+from .approvals import ApprovalStore
 from .audit import AuditEvent, AuditEventCallback
 from .models import (
     AccessRequest,
@@ -25,6 +26,7 @@ from .models import (
     Principal,
 )
 from .policy import PolicyEngine
+from .policy_registry import PolicyRegistry
 
 PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
@@ -33,6 +35,7 @@ ResourceAttributesResolver = Callable[[str], Mapping[str, JSONValue]]
 ContextResolver = Callable[[object], Mapping[str, JSONValue]]
 AuditCallback = Callable[[AccessRequest, Decision], None]
 ApprovalValidator = Callable[[Mapping[str, Any], AccessRequest, str], bool]
+ApprovalReviewerResolver = Callable[[object], str]
 
 
 def _canonical_json_value(value: Any) -> Any:
@@ -151,7 +154,7 @@ def _approval_fingerprint(
 
 
 def create_authorization_middleware(
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: PrincipalResolver,
     *,
     action_resolver: ActionResolver | None = None,
@@ -164,6 +167,8 @@ def create_authorization_middleware(
     policy_version: str | None = None,
     policy_digest: str | None = None,
     approval_validator: ApprovalValidator | None = None,
+    approval_store: ApprovalStore | None = None,
+    approval_reviewer_resolver: ApprovalReviewerResolver | None = None,
 ) -> Any:
     """Create middleware that authorizes every tool call before execution.
 
@@ -201,8 +206,8 @@ def create_authorization_middleware(
     Approval outcomes are audited after the interrupt resumes.
     """
 
-    if not isinstance(policy, PolicyEngine):
-        raise TypeError("policy must be a PolicyEngine instance")
+    if not isinstance(policy, (PolicyEngine, PolicyRegistry)):
+        raise TypeError("policy must be a PolicyEngine or PolicyRegistry instance")
     if not callable(principal_resolver):
         raise TypeError("principal_resolver must be callable")
     if action_resolver is not None and not callable(action_resolver):
@@ -219,10 +224,18 @@ def create_authorization_middleware(
         raise TypeError("audit_event_callback must be callable")
     if approval_validator is not None and not callable(approval_validator):
         raise TypeError("approval_validator must be callable")
+    if approval_reviewer_resolver is not None and not callable(approval_reviewer_resolver):
+        raise TypeError("approval_reviewer_resolver must be callable")
+    if approval_store is not None and approval_validator is not None:
+        raise ValueError("configure approval_store or approval_validator, not both")
+    if (approval_store is None) != (approval_reviewer_resolver is None):
+        raise ValueError("approval_store and approval_reviewer_resolver must be configured together")
 
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
         started = perf_counter()
+        policy_snapshot = policy.snapshot() if isinstance(policy, PolicyRegistry) else None
+        active_policy = policy_snapshot.engine if policy_snapshot is not None else policy
         tool_call = getattr(request, "tool_call", None)
         if not isinstance(tool_call, Mapping):
             raise TypeError("middleware request must contain a tool_call mapping")
@@ -279,7 +292,7 @@ def create_authorization_middleware(
             resource_attributes=resource_attributes,
             context=context_attributes,
         )
-        decision = policy.evaluate(access_request)
+        decision = active_policy.evaluate(access_request)
 
         def emit_audit(outcome: Decision, *, include_legacy: bool = True) -> None:
             duration_ms = (perf_counter() - started) * 1000.0
@@ -292,9 +305,18 @@ def create_authorization_middleware(
                     request_id=request_id,
                     execution_id=execution_id,
                     tool_name=tool_name,
-                    policy_id=policy_id,
-                    policy_version=policy_version,
-                    policy_digest=policy_digest,
+                    policy_id=(
+                        policy_id if policy_id is not None
+                        else policy_snapshot.policy_id if policy_snapshot is not None else None
+                    ),
+                    policy_version=(
+                        policy_version if policy_version is not None
+                        else policy_snapshot.version if policy_snapshot is not None else None
+                    ),
+                    policy_digest=(
+                        policy_digest if policy_digest is not None
+                        else policy_snapshot.digest if policy_snapshot is not None else None
+                    ),
                 )
                 audit_event_callback(event)
             if include_legacy and audit_callback is not None:
@@ -308,7 +330,7 @@ def create_authorization_middleware(
                 raise ValueError("approval-required tool calls must include a tool-call id")
 
             matched_policy_rules = tuple(
-                rule for rule in policy.rules if rule.rule_id in decision.matched_rule_ids
+                rule for rule in active_policy.rules if rule.rule_id in decision.matched_rule_ids
             )
             if tuple(rule.rule_id for rule in matched_policy_rules) != decision.matched_rule_ids:
                 raise RuntimeError("policy decision refers to an unknown policy rule")
@@ -344,7 +366,21 @@ def create_authorization_middleware(
                 and type(approval.get("approved")) is bool
                 and approval.get("request_fingerprint") == fingerprint
             )
-            if approval_valid and approval_validator is not None:
+            if approval_valid and approval_store is not None and approval.get("approved") is True:
+                approval_token = approval.get("approval_token")
+                assert approval_reviewer_resolver is not None
+                reviewer_id = call_resolver_without_mutation(
+                    approval_reviewer_resolver,
+                    runtime_context,
+                )
+                if not isinstance(reviewer_id, str) or not reviewer_id.strip():
+                    raise TypeError("approval_reviewer_resolver must return a non-empty reviewer ID")
+                approval_valid = (
+                    isinstance(approval_token, str)
+                    and bool(approval_token)
+                    and approval_store.consume(approval_token, fingerprint, reviewer_id.strip())
+                )
+            elif approval_valid and approval_validator is not None:
                 validation_result = approval_validator(
                     approval,
                     access_request,
