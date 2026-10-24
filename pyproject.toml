@@ -43,6 +43,7 @@ dev = [
   "mcp>=2.0,<3.0",
   "mypy>=1.13",
   "opentelemetry-api>=1.25",
+  "python-semantic-release==10.7.0",
   "pytest>=8.3",
   "pytest-cov>=6.0",
   "PyYAML>=6.0",
