@@ -239,9 +239,7 @@ def create_authorization_middleware(
         runtime = getattr(request, "runtime", None)
         runtime_context = getattr(runtime, "context", None)
         request_id = (
-            tool_call_id.strip()
-            if isinstance(tool_call_id, str) and tool_call_id.strip()
-            else None
+            tool_call_id.strip() if isinstance(tool_call_id, str) and tool_call_id.strip() else None
         )
         execution_info = getattr(runtime, "execution_info", None)
         task_id = getattr(execution_info, "task_id", None)
