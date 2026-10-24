@@ -164,11 +164,11 @@ def _parse_rule(value: object, index: int) -> PolicyRule:
         raise ValueError(f"{where}.effect must be a string")
     return PolicyRule(
         rule_id=_required_text(rule["rule_id"], f"{where}.rule_id"),
-        effect=rule["effect"],  # type: ignore[arg-type]
-        actions=frozenset(rule["actions"]),  # type: ignore[arg-type]
-        resources=frozenset(rule["resources"]),  # type: ignore[arg-type]
-        principal_ids=frozenset(rule["principal_ids"]),  # type: ignore[arg-type]
-        roles=frozenset(rule["roles"]),  # type: ignore[arg-type]
+        effect=rule["effect"],
+        actions=frozenset(rule["actions"]),
+        resources=frozenset(rule["resources"]),
+        principal_ids=frozenset(rule["principal_ids"]),
+        roles=frozenset(rule["roles"]),
         conditions=tuple(_parse_condition(item, i) for i, item in enumerate(conditions_value)),
     )
 
@@ -515,7 +515,7 @@ class PolicyBundle:
         return cls(
             policy_id=_required_text(payload["policy_id"], "policy_id"),
             version=_required_text(payload["version"], "version"),
-            description=payload.get("description", ""),  # type: ignore[arg-type]
+            description=payload.get("description", ""),
             rules=tuple(_parse_rule(rule, i) for i, rule in enumerate(payload["rules"])),
         )
 
