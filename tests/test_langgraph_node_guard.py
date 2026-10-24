@@ -429,6 +429,7 @@ def test_untrusted_graph_state_cannot_escalate_principal_roles() -> None:
     assert side_effects == [], "model-controlled state must not grant an operator role"
 
 
+
 def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
     visited: list[str] = []
 
@@ -472,9 +473,7 @@ def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
 def test_protected_node_preserves_interrupt_and_resume() -> None:
     resumed_values: list[str] = []
 
-    def interruptible_node(
-        state: GraphState, runtime: Runtime[AuthContext]
-    ) -> dict[str, bool]:
+    def interruptible_node(state: GraphState, runtime: Runtime[AuthContext]) -> dict[str, bool]:
         decision = interrupt({"operation": "refund", "resource": state["resource_id"]})
         resumed_values.append(str(decision))
         return {"completed": True}
