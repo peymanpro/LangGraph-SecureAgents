@@ -91,7 +91,7 @@ async def test_mcp_server_enforces_tenant_policy_before_tool_handler() -> None:
         handler_calls.append(customer_id)
         return _CUSTOMERS[customer_id]["summary"]
 
-    async with Client(server, raise_exceptions=True) as client:
+    async with Client(server) as client:
         tools = await client.list_tools()
         tool = next(item for item in tools.tools if item.name == "read_customer")
         assert "ctx" not in tool.input_schema.get("properties", {})
