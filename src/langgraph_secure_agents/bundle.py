@@ -517,6 +517,19 @@ class PolicyBundle:
         return cls.from_dict(payload)
 
     @classmethod
+    def from_file(cls, path: str | Path) -> PolicyBundle:
+        """Load a JSON or YAML policy bundle based on its file extension."""
+
+        source = Path(path)
+        suffix = source.suffix.lower()
+        content = source.read_text(encoding="utf-8")
+        if suffix == ".json":
+            return cls.from_json(content)
+        if suffix in {".yaml", ".yml"}:
+            return cls.from_yaml(content)
+        raise ValueError("policy bundle files must use .json, .yaml, or .yml")
+
+    @classmethod
     def from_yaml(cls, content: str) -> PolicyBundle:
         """Parse a YAML bundle using PyYAML's safe loader (optional dependency)."""
 
@@ -533,6 +546,20 @@ class PolicyBundle:
         except yaml.YAMLError as exc:
             raise ValueError(f"invalid policy bundle YAML: {exc}") from exc
         return cls.from_dict(payload)
+
+    def to_file(self, path: str | Path) -> Path:
+        """Write a JSON or YAML policy bundle and return the destination path."""
+
+        destination = Path(path)
+        suffix = destination.suffix.lower()
+        if suffix == ".json":
+            content = self.to_json()
+        elif suffix in {".yaml", ".yml"}:
+            content = self.to_yaml()
+        else:
+            raise ValueError("policy bundle files must use .json, .yaml, or .yml")
+        destination.write_text(content + "\\n", encoding="utf-8")
+        return destination
 
     def to_yaml(self) -> str:
         """Serialize as YAML, requiring the optional PyYAML dependency."""
