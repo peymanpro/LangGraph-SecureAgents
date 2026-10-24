@@ -96,13 +96,9 @@ class PolicyRegistry:
         candidate_snapshot = self._make_snapshot(candidate, generation=0)
         with self._lock:
             current = self._current
-            if (
-                expected_generation is not None
-                and expected_generation != current.generation
-            ):
+            if expected_generation is not None and expected_generation != current.generation:
                 raise PolicyUpdateConflict(
-                    f"expected policy generation {expected_generation}, "
-                    f"found {current.generation}"
+                    f"expected policy generation {expected_generation}, found {current.generation}"
                 )
             if candidate.policy_id != current.policy_id:
                 raise ValueError("candidate policy_id must match the registry policy_id")
