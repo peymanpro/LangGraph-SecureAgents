@@ -13,12 +13,21 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
 from ._resolver_safety import call_resolver_without_mutation
-from .models import AccessRequest, Decision, DecisionReason, PolicyRule, Principal
+from .models import (
+    AccessRequest,
+    AttributeReference,
+    Decision,
+    DecisionReason,
+    PolicyRule,
+    Principal,
+)
 from .policy import PolicyEngine
 
 PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
 ResourceResolver = Callable[[str, Mapping[str, Any]], str]
+ResourceAttributesResolver = Callable[[str, Mapping[str, Any]], Mapping[str, object]]
+ContextResolver = Callable[[object], Mapping[str, object]]
 AuditCallback = Callable[[AccessRequest, Decision], None]
 ApprovalValidator = Callable[[Mapping[str, Any], AccessRequest, str], bool]
 
@@ -94,6 +103,9 @@ def _approval_fingerprint(
         "tool_call_id": tool_call_id,
         "principal_id": access_request.principal.principal_id,
         "roles": sorted(access_request.principal.roles),
+        "principal_attributes": dict(access_request.principal.attributes),
+        "resource_attributes": dict(access_request.resource_attributes),
+        "context": dict(access_request.context),
         "action": access_request.action,
         "resource": access_request.resource,
         "matched_rule_ids": list(matched_rule_ids),
@@ -105,6 +117,18 @@ def _approval_fingerprint(
                 "resources": sorted(rule.resources),
                 "principal_ids": sorted(rule.principal_ids),
                 "roles": sorted(rule.roles),
+                "conditions": [
+                    {
+                        "attribute": condition.attribute,
+                        "operator": condition.operator.value,
+                        "value": (
+                            {"attribute_reference": condition.value.path}
+                            if isinstance(condition.value, AttributeReference)
+                            else condition.value
+                        ),
+                    }
+                    for condition in rule.conditions
+                ],
             }
             for rule in matched_policy_rules
         ],
@@ -129,6 +153,8 @@ def create_authorization_middleware(
     *,
     action_resolver: ActionResolver | None = None,
     resource_resolver: ResourceResolver | None = None,
+    resource_attributes_resolver: ResourceAttributesResolver | None = None,
+    context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
     approval_validator: ApprovalValidator | None = None,
 ) -> Any:
@@ -157,8 +183,10 @@ def create_authorization_middleware(
     not be based on untrusted model output. Without this callback, the host
     remains responsible for these controls externally.
 
-    Custom action/resource resolvers receive detached argument copies. Mutating
-    those copies raises an error before the protected tool runs. Resolvers must
+    Custom action, resource, and resource-attribute resolvers receive detached
+    argument copies. The context resolver receives a detached runtime-context copy.
+    Resolver results must come from trusted application data, not LLM claims. Mutating
+    resolver inputs raises an error before the protected tool runs. Resolvers must
     otherwise be trusted, side-effect-free application code.
 
     If configured auditing raises, the tool handler is not invoked (fail closed).
@@ -173,6 +201,10 @@ def create_authorization_middleware(
         raise TypeError("action_resolver must be callable")
     if resource_resolver is not None and not callable(resource_resolver):
         raise TypeError("resource_resolver must be callable")
+    if resource_attributes_resolver is not None and not callable(resource_attributes_resolver):
+        raise TypeError("resource_attributes_resolver must be callable")
+    if context_resolver is not None and not callable(context_resolver):
+        raise TypeError("context_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
     if approval_validator is not None and not callable(approval_validator):
@@ -209,10 +241,28 @@ def create_authorization_middleware(
             if resource_resolver is None
             else call_resolver_without_mutation(resource_resolver, tool_name, tool_args)
         )
+        resource_attributes = (
+            {}
+            if resource_attributes_resolver is None
+            else call_resolver_without_mutation(
+                resource_attributes_resolver, tool_name, tool_args
+            )
+        )
+        if not isinstance(resource_attributes, Mapping):
+            raise TypeError("resource_attributes_resolver must return a mapping")
+        context_attributes = (
+            {}
+            if context_resolver is None
+            else call_resolver_without_mutation(context_resolver, runtime_context)
+        )
+        if not isinstance(context_attributes, Mapping):
+            raise TypeError("context_resolver must return a mapping")
         access_request = AccessRequest(
             principal=principal,
             action=action,
             resource=resource,
+            resource_attributes=resource_attributes,
+            context=context_attributes,
         )
         decision = policy.evaluate(access_request)
 
