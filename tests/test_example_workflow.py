@@ -35,6 +35,7 @@ def test_workflow_allows_only_matching_role_action_and_resource() -> None:
     assert wrong_role["report"] is None
     assert wrong_role["error"] is not None
 
+
 def test_langgraph_node_guard_example_runs_without_external_services() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
