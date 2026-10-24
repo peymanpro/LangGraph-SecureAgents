@@ -494,6 +494,7 @@ def test_bundle_parser_rejects_invalid_container_types() -> None:
     with pytest.raises(TypeError, match="content must be a JSON string"):
         PolicyBundle.from_json(42)  # type: ignore[arg-type]
 
+
 def test_json_parser_normalizes_recursion_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     from langgraph_secure_agents import bundle as bundle_module
 
