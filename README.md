@@ -496,8 +496,11 @@ mypy src
 pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional middleware extra, optional MCP extra, and optional OpenTelemetry extra.
+CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional LangGraph node-guard extra, optional LangChain middleware extra, optional MCP extra, and optional OpenTelemetry extra.
 
+## Release status
+
+The package is currently classified as **Alpha**. The PyPI version badge at the top of this README links to the published package and reflects the version shown by PyPI; commits on `develop` are not published. Pushes to `main` run the automatic release workflow, which runs its quality and packaging gates before semantic versioning, creating the GitHub Release, and publishing the validated distributions to PyPI. Do not create release tags or upload packages manually. See [the release process](docs/releasing.md).
 ## Project documentation
 
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
