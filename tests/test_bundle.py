@@ -286,3 +286,96 @@ def test_yaml_support_can_be_absent_without_breaking_core_bundle(monkeypatch: py
             PolicyBundle.from_yaml("schema_version: 1")
 
     assert PolicyBundle.from_json(original.to_json()) == original
+
+
+
+def test_lint_warns_when_bundle_is_empty() -> None:
+    bundle = PolicyBundle(policy_id="empty", version="1.0.0", rules=())
+
+    findings = bundle.lint()
+
+    assert [(item.code, item.severity.value) for item in findings] == [("BND001", "warning")]
+
+
+def test_lint_flags_wildcard_allow_and_universal_principal() -> None:
+    bundle = PolicyBundle(
+        policy_id="broad-access",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="all-access",
+                effect=Effect.ALLOW,
+                actions=frozenset({"*"}),
+                resources=frozenset({"*"}),
+                principal_ids=frozenset({"*"}),
+            ),
+        ),
+    )
+
+    findings = bundle.lint()
+
+    assert {item.code for item in findings} == {"SEC001", "SEC002"}
+    assert all(item.rule_id == "all-access" for item in findings)
+    assert all(item.severity.value == "warning" for item in findings)
+
+
+def test_lint_reports_broad_approval_scope_as_informational() -> None:
+    bundle = PolicyBundle(
+        policy_id="approval",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="review-everything",
+                effect=Effect.REQUIRE_APPROVAL,
+                actions=frozenset({"*"}),
+                resources=frozenset({"payroll"}),
+                roles=frozenset({"analyst"}),
+            ),
+        ),
+    )
+
+    findings = bundle.lint()
+
+    assert [(item.code, item.severity.value) for item in findings] == [("APR001", "info")]
+
+
+def test_lint_reports_duplicate_conditions_once_per_rule() -> None:
+    duplicate = AttributeCondition("context.environment", ConditionOperator.EQ, "prod")
+    bundle = PolicyBundle(
+        policy_id="duplicates",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="duplicated-condition",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"reports"}),
+                roles=frozenset({"analyst"}),
+                conditions=(duplicate, duplicate),
+            ),
+        ),
+    )
+
+    findings = bundle.lint()
+
+    assert [(item.code, item.rule_id) for item in findings] == [
+        ("POL001", "duplicated-condition")
+    ]
+
+
+def test_lint_is_quiet_for_narrow_policy_rules() -> None:
+    bundle = PolicyBundle(
+        policy_id="narrow",
+        version="1.0.0",
+        rules=(
+            PolicyRule(
+                rule_id="alice-reads-report-42",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"report:42"}),
+                principal_ids=frozenset({"alice"}),
+            ),
+        ),
+    )
+
+    assert bundle.lint() == ()
