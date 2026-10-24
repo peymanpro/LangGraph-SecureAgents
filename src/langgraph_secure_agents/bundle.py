@@ -24,7 +24,9 @@ from .policy import PolicyEngine, PolicyExplanation
 _SCHEMA_VERSION = 1
 _SEMVER_PATTERN = re.compile(
     r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-    r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?"
+    r"(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
 )
 _BUNDLE_KEYS = {"schema_version", "policy_id", "version", "description", "rules"}
 _RULE_KEYS = {"rule_id", "effect", "actions", "resources", "principal_ids", "roles", "conditions"}
