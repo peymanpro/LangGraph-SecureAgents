@@ -440,7 +440,6 @@ def test_bundle_rejects_boolean_schema_version_and_non_string_condition_operator
         PolicyBundle.from_dict(payload)
 
 
-
 def test_bundle_parser_rejects_malformed_condition_objects() -> None:
     payload = sample_bundle().to_dict()
     payload["rules"][0]["conditions"] = ["not-an-object"]  # type: ignore[index]
