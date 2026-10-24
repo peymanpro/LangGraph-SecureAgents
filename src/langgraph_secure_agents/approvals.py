@@ -40,10 +40,11 @@ class SQLiteApprovalStore:
     """Persistent approval-token store with expiry and atomic one-time use.
 
     The raw bearer token is returned only by :meth:`issue`; only its SHA-256
-    digest is persisted. The request fingerprint is unique for the lifetime of
-    the database, so a consumed or expired grant cannot be reissued for the same
-    operation. Callers must authenticate the reviewer before issuing a grant and
-    supply that same trusted reviewer identity when consuming it.
+    digest is persisted. A request fingerprint can have only one retained grant;
+    after an expired grant is explicitly purged, the store no longer remembers that
+    fingerprint. Callers must therefore use unique per-operation fingerprints and
+    never recycle them. They must authenticate the reviewer before issuing a grant
+    and supply that same trusted reviewer identity when consuming it.
     """
 
     def __init__(
