@@ -1,59 +1,34 @@
 # Release process
 
-This project is distributed as a Python library. A release consists of validated wheel and source-distribution artifacts, a GitHub Release, and publication to PyPI through Trusted Publishing. Releases are generated automatically from qualifying Conventional Commit messages merged into `main`; do not create release tags manually.
+Every merged project update should be reflected in a new package release on PyPI. Pushes to `main` run the release workflow; a validated, Conventional Commit message determines the version increment. Do not create version tags or upload packages manually.
 
-## Versioning
+## Versioning policy
 
-The canonical package version is `project.version` in `pyproject.toml` and is synchronized with `src/langgraph_secure_agents/__init__.py` (`__version__`) by Python Semantic Release. Tags use the configured format `v{version}` (for example, `v0.1.0a0`) and are created by the workflow, not by hand.
+The canonical version is `project.version` in `pyproject.toml`. The package's `__version__` is read from installed distribution metadata, so it follows the version of the wheel/sdist instead of maintaining a second hard-coded number. From an uninstalled source checkout, it reports `0+unknown`.
 
-Follow PEP 440. Alpha versions such as `0.1.0a0` are pre-releases and are not stable production releases. Breaking changes may occur before the first stable release.
+The release workflow uses these increments:
 
-## First-release checklist
+- `feat:` produces a minor release.
+- `fix:`, `perf:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, and `test:` produce a patch release.
+- A breaking-change marker such as `feat!:` or a `BREAKING CHANGE:` footer increments the minor version while the project remains on `0.x`, as configured by `major_on_zero = false`.
 
-Before the first automatic release, verify each item against the current `main` branch:
-
-- [ ] Public API names, signatures, behavior, and documented examples have been reviewed against the implementation.
-- [ ] README describes the project as a reusable library and accurately documents installation, optional dependencies, quick start, limitations, and supported Python versions.
-- [ ] Threat model and security policy accurately state the trust boundaries and what the library does not provide.
-- [ ] Full CI passes, including lint, formatting, strict typing, coverage threshold, distribution build, clean-wheel smoke test, and optional middleware-extra smoke test.
-- [ ] Wheel and source distribution build successfully and pass `twine check`.
-- [ ] `pyproject.toml` and package `__version__` are synchronized.
-- [ ] PyPI Trusted Publishing is configured for owner `peymanpro`, repository `LangGraph-SecureAgents`, workflow file `.github/workflows/release.yml`, and GitHub environment `pypi`.
-- [ ] The GitHub `pypi` environment has no required reviewer gate, so publication can complete automatically after CI and PyPI Trusted Publishing succeed.
-- [ ] The PyPI project name `langgraph-secure-agents` is available or its pending publisher is configured for this owner.
-- [ ] The maintainer understands that publishing a version to PyPI is effectively irreversible for that version.
-
-Do not mark the checklist complete just because CI is green. CI verifies the configured automated checks; it is not an independent security audit.
+Use one of these Conventional Commit types for every change intended to update the published package. In particular, documentation-only changes produce a new patch release so the README shown on PyPI stays synchronized with the repository.
 
 ## Automated release workflow
 
-The release workflow runs on pushes to `main`. It can also be started manually for diagnosis, but the release and publish jobs are guarded to run only for `main`. The workflow first runs the quality gate across Python 3.11, 3.12, and 3.13, then builds both distributions, validates them with Twine, installs the wheel in a clean environment, and smoke-tests the core API and optional middleware extra.
+On a push to `main`, GitHub Actions:
 
-Only after those checks pass does Python Semantic Release inspect Conventional Commit messages. When a release is warranted, it synchronizes the version in `pyproject.toml` and the package `__version__`, updates `CHANGELOG.md`, creates the version commit and tag, and creates a GitHub Release. The workflow then builds and validates the release distributions, attaches them to the GitHub Release, and publishes those artifacts to PyPI.
+1. Runs lint, formatting, strict typing, and the test suite on Python 3.11, 3.12, and 3.13, enforcing the configured minimum coverage.
+2. Builds the wheel and source distribution, validates distribution metadata, and smoke-tests the installed package and optional agent middleware.
+3. Uses Python Semantic Release to determine the next version, update `pyproject.toml` and `CHANGELOG.md`, create the version commit and Git tag, and create the GitHub Release.
+4. Builds and validates the versioned distribution artifacts, attaches them to the GitHub Release, and publishes those same artifacts to PyPI via Trusted Publishing (GitHub OIDC).
 
-The PyPI job is separate from the versioning job and receives only `id-token: write`; the versioning job does not receive OIDC permission. No permanent PyPI API token is used. Publication requires the one-time Trusted Publisher configuration and a GitHub environment named `pypi` with no required manual reviewer if the desired behavior is fully automatic.
+The PyPI publishing job runs only after the release job succeeds. It receives `id-token: write` but no repository-content permission; no permanent PyPI API token is used. The PyPI Trusted Publisher must be configured for owner `peymanpro`, repository `LangGraph-SecureAgents`, workflow `.github/workflows/release.yml`, and the GitHub environment `pypi`. The environment must not require a manual reviewer when fully automatic publishing is desired.
 
-## Automatic versioning
+The workflow's version commit is tagged as the release itself. A subsequent merge triggers the next version analysis; no manual tag creation is required.
 
-Do not create version tags manually. Merge release-worthy changes into `main` with Conventional Commit messages:
+## Verification after each release
 
-- `fix:` normally produces a patch release.
-- `feat:` normally produces a minor release.
-- A `BREAKING CHANGE:` footer or breaking-change marker such as `feat!:` normally produces a major release, subject to the configured pre-1.0 versioning policy.
-- Documentation, test, and CI-only changes do not normally publish a new package version.
+Check that the [GitHub Releases](https://github.com/peymanpro/LangGraph-SecureAgents/releases) and [PyPI project page](https://pypi.org/project/langgraph-secure-agents/) show the same version. Install that version in a clean virtual environment and verify both the core package and the `langchain-agents` extra. The package metadata includes the README, so publishing a new version also refreshes the project description displayed on PyPI.
 
-The workflow creates the version commit and tag only after the release quality gate passes. If no release-worthy commit is found, no package is published.
-
-Before enabling automatic publication, configure PyPI Trusted Publishing and the GitHub `pypi` environment once. If the publisher or environment is not configured correctly, publication cannot complete; configure them before expecting the first release to succeed.
-
-## After release
-
-- Confirm both the GitHub Release and PyPI project page show the expected version.
-- Download and install the published package in a clean virtual environment.
-- Test the documented core install and the `langchain-agents` extra from the published distribution.
-- Record the release URL, version, and artifact hashes in the project release notes.
-- Update the README installation section if any release-specific caveat remains.
-
-## Security and support status
-
-An alpha release is a real distributable package, not a claim of production readiness. This project has not received an independent security audit. Do not use it as the sole security boundary for production or sensitive data.
+CI verifies the automated checks listed above. It is not a substitute for reviewing application-specific authentication, policy rules, resource resolvers, approval handling, and downstream authorization controls; see the [threat model](threat-model.md).
