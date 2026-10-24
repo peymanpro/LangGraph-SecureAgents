@@ -202,7 +202,6 @@ class AuditEvent:
             "matched_rule_count": self.matched_rule_count,
             "policy_id": self.policy_id,
             "policy_version": self.policy_version,
-            "policy_digest": self.policy_digest,
             "duration_ms": self.duration_ms,
         }
         if include_sensitive:
@@ -213,6 +212,7 @@ class AuditEvent:
             payload["request_id"] = self.request_id
             payload["execution_id"] = self.execution_id
             payload["tool_name"] = self.tool_name
+            payload["policy_digest"] = self.policy_digest
         return payload
 
     def to_json(self, *, include_sensitive: bool = False, indent: int | None = None) -> str:
