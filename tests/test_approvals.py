@@ -121,4 +121,3 @@ def test_database_failures_propagate_and_transactions_are_rolled_back(
         consume_store.consume("opaque-token", "fingerprint-2", "reviewer-2")
     assert consume_store._connection.in_transaction is False
     consume_store.close()
-
