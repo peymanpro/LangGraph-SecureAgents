@@ -324,7 +324,6 @@ def test_conditions_must_be_typed_attribute_conditions() -> None:
         )
 
 
-
 @pytest.mark.parametrize(
     ("operator", "value"),
     [
@@ -337,9 +336,7 @@ def test_negative_comparisons_fail_closed_for_incompatible_types(
     value: object,
 ) -> None:
     condition = AttributeCondition("context.clearance", operator, value)  # type: ignore[arg-type]
-    decision = PolicyEngine([allow_rule(condition)]).evaluate(
-        request(context={"clearance": 7})
-    )
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(request(context={"clearance": 7}))
 
     assert not decision.allowed
 
