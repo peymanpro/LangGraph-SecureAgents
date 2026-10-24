@@ -139,19 +139,22 @@ class PolicyEngine:
             return cls._safe_equal(actual, expected)
         if operator is ConditionOperator.NE:
             return not cls._safe_equal(actual, expected)
-        if operator is ConditionOperator.IN:
-            return cls._member_of(actual, expected)
-        if operator is ConditionOperator.NOT_IN:
-            return not cls._member_of(actual, expected)
+        if operator in {ConditionOperator.IN, ConditionOperator.NOT_IN}:
+            if not isinstance(expected, (tuple, frozenset)):
+                return False
+            is_member = cls._member_of(actual, expected)
+            return is_member if operator is ConditionOperator.IN else not is_member
         if operator is ConditionOperator.CONTAINS:
             return cls._contains(actual, expected)
 
         if (
-            type(actual) not in (int, float)
-            or type(expected) not in (int, float)
-            or not isfinite(actual)
-            or not isfinite(expected)
+            not isinstance(actual, (int, float))
+            or isinstance(actual, bool)
+            or not isinstance(expected, (int, float))
+            or isinstance(expected, bool)
         ):
+            return False
+        if not isfinite(actual) or not isfinite(expected):
             return False
         if operator is ConditionOperator.GT:
             return actual > expected
