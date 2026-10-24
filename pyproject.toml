@@ -43,6 +43,7 @@ dev = [
   "mcp>=2.0,<3.0",
   "mypy>=1.13",
   "opentelemetry-api>=1.25",
+  "python-semantic-release==10.7.0",
   "pytest>=8.3",
   "pytest-cov>=6.0",
   "PyYAML>=6.0",
@@ -78,10 +79,14 @@ version_toml = ["pyproject.toml:project.version"]
 commit_message = "chore(release): {version} [skip ci]"
 allow_zero_version = true
 major_on_zero = false
+commit_parser = "conventional"
 
 [tool.semantic_release.commit_parser_options]
+# Consumer-visible improvements and fixes determine the published version.
 minor_tags = ["feat"]
-patch_tags = ["fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+patch_tags = ["fix", "perf", "build"]
+# Internal or editorial work must not create a package release by itself.
+other_allowed_tags = ["chore", "ci", "docs", "style", "refactor", "test"]
 parse_squash_commits = true
 ignore_merge_commits = true
 
