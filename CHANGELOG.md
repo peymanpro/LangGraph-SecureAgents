@@ -4,6 +4,14 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.3.1 (2026-10-24)
+
+### Bug Fixes
+
+- **validation**: Enforce strict semantic versions for policy bundles
+  ([`6e8d7a9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6e8d7a9a1f22b948f84ebb23c1e0458d720ba2e8))
+
+
 ## v0.3.0 (2026-10-24)
 
 ### Bug Fixes
