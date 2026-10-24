@@ -5,7 +5,16 @@ from typing import Any
 
 import pytest
 
-from langgraph_secure_agents import AccessRequest, Effect, PolicyEngine, PolicyRule, Principal
+from langgraph_secure_agents import (
+    AccessRequest,
+    AttributeCondition,
+    AttributeReference,
+    ConditionOperator,
+    Effect,
+    PolicyEngine,
+    PolicyRule,
+    Principal,
+)
 from langgraph_secure_agents.guard import AuthorizationDenied, protect_callable
 
 
@@ -214,6 +223,18 @@ def test_protect_callable_rejects_invalid_configuration() -> None:
             TypeError,
             "resource_resolver must be callable",
         ),
+        (
+            operation,
+            {"resource_attributes_resolver": object()},
+            TypeError,
+            "resource_attributes_resolver must be callable",
+        ),
+        (
+            operation,
+            {"context_resolver": object()},
+            TypeError,
+            "context_resolver must be callable",
+        ),
         (operation, {"audit_callback": object()}, TypeError, "audit_callback must be callable"),
         (operation, {"action": ""}, ValueError, "concrete action"),
         (operation, {"action": "*"}, ValueError, "concrete action"),
@@ -264,3 +285,106 @@ def test_async_callable_authorizes_when_awaited_not_when_coroutine_is_created() 
         assert handler_calls == []
 
     asyncio.run(scenario())
+
+
+def test_callable_guard_enforces_tenant_abac_before_function_execution() -> None:
+    records = {
+        "document:42": {"tenant_id": "tenant-a"},
+        "document:99": {"tenant_id": "tenant-b"},
+    }
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="read-own-tenant-document",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"*"}),
+                roles=frozenset({"analyst"}),
+                conditions=(
+                    AttributeCondition(
+                        "principal.attributes.tenant_id",
+                        ConditionOperator.EQ,
+                        AttributeReference("resource.attributes.tenant_id"),
+                    ),
+                    AttributeCondition("context.environment", ConditionOperator.EQ, "prod"),
+                ),
+            )
+        ]
+    )
+    calls: list[str] = []
+
+    def read_document(document_id: str) -> str:
+        calls.append(document_id)
+        return f"document:{document_id}"
+
+    guarded = protect_callable(
+        read_document,
+        policy=policy,
+        principal_resolver=lambda: Principal(
+            "alice",
+            roles=frozenset({"analyst"}),
+            attributes={"tenant_id": "tenant-a"},
+        ),
+        action="read",
+        resource_resolver=lambda document_id: f"document:{document_id}",
+        resource_attributes_resolver=lambda resource: records[resource],
+        context_resolver=lambda: {"environment": "prod"},
+    )
+
+    assert guarded("42") == "document:42"
+    with pytest.raises(AuthorizationDenied):
+        guarded("99")
+
+    assert calls == ["42"]
+
+
+def test_callable_guard_fails_closed_when_attribute_resolvers_return_non_mappings() -> None:
+    def operation(document_id: str) -> str:
+        return document_id
+
+    guarded = protect_callable(
+        operation,
+        policy=PolicyEngine([allow_rule(resource="document:42")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+        action="read",
+        resource_resolver=lambda document_id: f"document:{document_id}",
+        resource_attributes_resolver=lambda resource: "not-metadata",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="resource_attributes_resolver must return a mapping"):
+        guarded("42")
+
+
+def test_callable_guard_fails_closed_when_context_resolver_returns_non_mapping() -> None:
+    calls: list[bool] = []
+
+    def operation() -> str:
+        calls.append(True)
+        return "executed"
+
+    guarded = protect_callable(
+        operation,
+        policy=PolicyEngine([allow_rule(resource="operation")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+        context_resolver=lambda: "untrusted-context",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="context_resolver must return a mapping"):
+        guarded()
+
+    assert calls == []
+
+
+def test_async_callable_executes_when_authorization_succeeds() -> None:
+    import asyncio
+
+    async def operation() -> str:
+        return "approved"
+
+    guarded = protect_callable(
+        operation,
+        policy=PolicyEngine([allow_rule(resource="operation", action="execute")]),
+        principal_resolver=lambda: Principal("alice", roles=frozenset({"analyst"})),
+    )
+
+    assert asyncio.run(guarded()) == "approved"

@@ -15,7 +15,7 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and c
 ## What it provides
 
 - **Deterministic policy evaluation** with default-deny behavior and explicit-deny rules taking precedence over allow rules.
-- **Principal- and role-based access control** over application-defined actions and resources.
+- **Role- and attribute-based access control (RBAC/ABAC)**, including conditions over trusted principal, resource, and request-context attributes.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
 - **Human-approval interrupts** for selected sensitive agent actions.
@@ -102,6 +102,63 @@ assert decision.reason is DecisionReason.EXPLICIT_ALLOW
 
 A request with no matching allow rule is denied by default. An explicit matching deny rule overrides an allow rule. Use the public `DecisionReason` enum for machine-readable outcomes rather than matching free-form text.
 
+## Attribute-based access control (ABAC)
+
+Policies can combine the existing principal/action/resource selectors with typed conditions over trusted principal attributes, resource attributes, and request context. Conditions on a rule are combined with AND. Missing attributes and incompatible comparison types fail closed; only the explicit `not_exists` operator matches a missing attribute.
+
+The following policy permits analysts to read a document only when its tenant matches the authenticated principal's tenant. The host application must load both sets of attributes from trusted sources; never copy tenant identifiers or privileged attributes from model-generated tool arguments.
+
+```python
+from langgraph_secure_agents import (
+    AccessRequest,
+    AttributeCondition,
+    AttributeReference,
+    ConditionOperator,
+    Effect,
+    PolicyEngine,
+    PolicyRule,
+    Principal,
+)
+
+tenant_policy = PolicyEngine(
+    [
+        PolicyRule(
+            rule_id="analysts-read-own-tenant-documents",
+            effect=Effect.ALLOW,
+            roles={"analyst"},
+            actions={"read"},
+            resources={"*"},
+            conditions=(
+                AttributeCondition(
+                    attribute="principal.attributes.tenant_id",
+                    operator=ConditionOperator.EQ,
+                    value=AttributeReference("resource.attributes.tenant_id"),
+                ),
+            ),
+        )
+    ]
+)
+
+request = AccessRequest(
+    principal=Principal(
+        "user-123",
+        roles=frozenset({"analyst"}),
+        attributes={"tenant_id": "tenant-a"},  # Trusted authenticated identity data
+    ),
+    action="read",
+    resource="document:42",
+    resource_attributes={"tenant_id": "tenant-a"},  # Trusted resource metadata
+)
+
+assert tenant_policy.evaluate(request).allowed
+```
+
+Supported operators are `eq`, `ne`, `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `contains`, `exists`, and `not_exists`. Use `AttributeReference("context.environment")` or another validated attribute path to compare two attributes instead of hard-coding a value. Attribute paths are resolved using mapping lookups only; the library does not execute expressions or Python code from policy input.
+
+`resource_attributes` and `context` must be populated by trusted server-side code. ABAC rules do not replace resource-level authorization in databases or APIs, and tenant isolation depends on supplying the actual resource attributes used by the protected operation.
+
+The same conditions are supported by both callable guards and the optional agent middleware. For a callable guard, pass a `resource_attributes_resolver(resource_id)` to load trusted metadata for the resolved resource, plus a zero-argument `context_resolver()` for trusted request context. For the middleware, `resource_attributes_resolver(resource_id)` receives the resolved resource ID and `context_resolver(runtime_context)` selects trusted values from the host-supplied runtime context. Resolver results must describe the actual resource and must not copy authorization attributes from model-generated tool arguments.
+
 ## Protect an existing Python callable
 
 Wrap a function that accesses a protected resource. The resolver must identify the same resource that the function actually accesses.
@@ -174,7 +231,7 @@ Integrators must:
 - Keep downstream services and data stores' own authorization controls enabled.
 - Configure and operate durable audit storage when audit persistence is required.
 
-This library does **not** provide authentication, tenant isolation, prompt-injection prevention, secrets management, rate limiting, or a human-reviewer service. Read the [threat model](docs/threat-model.md) and [security policy](SECURITY.md) before evaluating it for your use case.
+This library does **not** provide authentication, automatic database-level tenant isolation, prompt-injection prevention, secrets management, rate limiting, or a human-reviewer service. Read the [threat model](docs/threat-model.md) and [security policy](SECURITY.md) before evaluating it for your use case.
 
 ## Run the example
 

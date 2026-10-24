@@ -8,6 +8,9 @@ import pytest
 from langchain_core.messages import ToolMessage
 
 from langgraph_secure_agents import (
+    AttributeCondition,
+    AttributeReference,
+    ConditionOperator,
     Decision,
     DecisionReason,
     Effect,
@@ -818,3 +821,168 @@ def test_approval_validator_is_not_called_for_mismatched_fingerprint(
     assert response.content == "Approval response invalid; tool was not executed."
     assert validator_calls == []
     assert handler_calls == []
+
+
+def test_middleware_enforces_tenant_abac_using_trusted_resource_metadata() -> None:
+    resources = {
+        "document:42": {"tenant_id": "tenant-a"},
+        "document:99": {"tenant_id": "tenant-b"},
+    }
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="analysts-read-own-tenant-documents",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"*"}),
+                roles=frozenset({"analyst"}),
+                conditions=(
+                    AttributeCondition(
+                        "principal.attributes.tenant_id",
+                        ConditionOperator.EQ,
+                        AttributeReference("resource.attributes.tenant_id"),
+                    ),
+                    AttributeCondition("context.environment", ConditionOperator.EQ, "prod"),
+                ),
+            )
+        ]
+    )
+
+    def resolve_principal(context: object) -> Principal:
+        assert isinstance(context, Mapping)
+        return Principal(
+            str(context["user_id"]),
+            roles=frozenset({"analyst"}),
+            attributes={"tenant_id": str(context["tenant_id"])},
+        )
+
+    middleware = create_authorization_middleware(
+        policy,
+        principal_resolver=resolve_principal,
+        action_resolver=lambda tool_name, args: "read",
+        resource_resolver=lambda tool_name, args: f"document:{args['document_id']}",
+        resource_attributes_resolver=lambda resource: resources[resource],
+        context_resolver=lambda context: {"environment": context["environment"]},  # type: ignore[index]
+    )
+    handler_calls: list[str] = []
+
+    def handler(request: Any) -> ToolMessage:
+        handler_calls.append(request.tool_call["args"]["document_id"])
+        return ToolMessage(content="document read", tool_call_id=request.tool_call["id"])
+
+    same_tenant = middleware.wrap_tool_call(
+        middleware_request(
+            args={"document_id": "42"},
+            tool_call_id="tenant-match",
+            context={"user_id": "alice", "tenant_id": "tenant-a", "environment": "prod"},
+        ),
+        handler,
+    )
+    cross_tenant = middleware.wrap_tool_call(
+        middleware_request(
+            args={"document_id": "99"},
+            tool_call_id="tenant-mismatch",
+            context={"user_id": "alice", "tenant_id": "tenant-a", "environment": "prod"},
+        ),
+        handler,
+    )
+
+    assert isinstance(same_tenant, ToolMessage)
+    assert same_tenant.content == "document read"
+    assert isinstance(cross_tenant, ToolMessage)
+    assert cross_tenant.status == "error"
+    assert cross_tenant.content == "Authorization denied."
+    assert handler_calls == ["42"]
+
+
+def test_abac_condition_definitions_are_bound_into_approval_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fingerprints: list[str] = []
+
+    def fake_interrupt(payload: dict[str, Any]) -> dict[str, Any]:
+        fingerprints.append(payload["request_fingerprint"])
+        return {"approved": True, "request_fingerprint": payload["request_fingerprint"]}
+
+    monkeypatch.setattr(middleware_module, "interrupt", fake_interrupt)
+    rules = [
+        PolicyRule(
+            rule_id="approval-rule",
+            effect=Effect.REQUIRE_APPROVAL,
+            actions=frozenset({"execute"}),
+            resources=frozenset({"read_payroll"}),
+            roles=frozenset({"analyst"}),
+            conditions=(condition,),
+        )
+        for condition in (
+            AttributeCondition("principal.attributes.clearance", ConditionOperator.EQ, "high"),
+            AttributeCondition(
+                "principal.attributes.clearance",
+                ConditionOperator.IN,
+                ["high", "restricted"],
+            ),
+        )
+    ]
+
+    for policy_rule in rules:
+        middleware = create_authorization_middleware(
+            PolicyEngine([policy_rule]),
+            principal_resolver=lambda context: Principal(
+                "alice",
+                roles=frozenset({"analyst"}),
+                attributes={"clearance": "high"},
+            ),
+        )
+        response = middleware.wrap_tool_call(
+            middleware_request(
+                tool_call_id="same-approval-call",
+                context={"user_id": "alice"},
+            ),
+            lambda request: ToolMessage(content="approved", tool_call_id="same-approval-call"),
+        )
+        assert isinstance(response, ToolMessage)
+        assert response.content == "approved"
+
+    assert len(fingerprints) == 2
+    assert fingerprints[0] != fingerprints[1]
+
+
+def test_middleware_rejects_non_callable_attribute_resolvers() -> None:
+    options: dict[str, Any] = {
+        "policy": PolicyEngine(),
+        "principal_resolver": lambda context: Principal("alice"),
+    }
+
+    with pytest.raises(TypeError, match="resource_attributes_resolver must be callable"):
+        create_authorization_middleware(**options, resource_attributes_resolver=object())  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="context_resolver must be callable"):
+        create_authorization_middleware(**options, context_resolver=object())  # type: ignore[arg-type]
+
+
+def test_middleware_fails_closed_when_resource_attributes_resolver_returns_non_mapping() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([allow_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        resource_attributes_resolver=lambda resource: "not-metadata",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="resource_attributes_resolver must return a mapping"):
+        middleware.wrap_tool_call(
+            middleware_request(),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-resource"),
+        )
+
+
+def test_middleware_fails_closed_when_context_resolver_returns_non_mapping() -> None:
+    middleware = create_authorization_middleware(
+        PolicyEngine([allow_rule()]),
+        principal_resolver=lambda context: Principal("alice", roles=frozenset({"analyst"})),
+        context_resolver=lambda context: "not-context",  # type: ignore[return-value]
+    )
+
+    with pytest.raises(TypeError, match="context_resolver must return a mapping"):
+        middleware.wrap_tool_call(
+            middleware_request(),
+            lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-context"),
+        )

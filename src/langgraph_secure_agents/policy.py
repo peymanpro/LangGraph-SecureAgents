@@ -1,21 +1,36 @@
-"""Deterministic policy evaluation with deny-overrides semantics."""
+"""Deterministic policy evaluation with deny-overrides and safe ABAC conditions."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from math import isfinite
+from typing import Any
 
-from .models import AccessRequest, Decision, DecisionReason, Effect, PolicyRule
+from .models import (
+    AccessRequest,
+    AttributeCondition,
+    AttributeReference,
+    ConditionOperator,
+    Decision,
+    DecisionReason,
+    Effect,
+    PolicyRule,
+)
+
+_MISSING = object()
 
 
 class PolicyEngine:
     """Evaluate authorization requests without involving an LLM.
 
     A matching DENY rule always overrides every other effect. Otherwise a
-    matching REQUIRE_APPROVAL rule takes precedence over ALLOW and returns a
-    non-allowing decision that an approval-aware integration may handle.
-    Requests not covered by an allow or approval rule are denied by default.
+    matching REQUIRE_APPROVAL rule takes precedence over ALLOW. Requests not
+    covered by an allow or approval rule are denied by default.
 
-    Rules are immutable after construction. Create a new engine to change policy.
+    Conditions on a rule are combined with logical AND. Missing attributes,
+    incompatible operand types, and unresolved attribute references never
+    satisfy a condition. Conditions are evaluated by built-in operators only;
+    policy strings are never executed as code.
     """
 
     __slots__ = ("_rules",)
@@ -43,7 +58,7 @@ class PolicyEngine:
         return self._rules
 
     def evaluate(self, request: AccessRequest) -> Decision:
-        """Return the authorization decision for a concrete access request."""
+        """Return the deterministic authorization decision for a concrete request."""
 
         if not isinstance(request, AccessRequest):
             raise TypeError("request must be an AccessRequest instance")
@@ -82,8 +97,8 @@ class PolicyEngine:
 
         return Decision(allowed=False, reason=DecisionReason.DEFAULT_DENY)
 
-    @staticmethod
-    def _matches(rule: PolicyRule, request: AccessRequest) -> bool:
+    @classmethod
+    def _matches(cls, rule: PolicyRule, request: AccessRequest) -> bool:
         if rule.actions != frozenset({"*"}) and request.action not in rule.actions:
             return False
         if rule.resources != frozenset({"*"}) and request.resource not in rule.resources:
@@ -96,4 +111,138 @@ class PolicyEngine:
         if rule.roles and not request.principal.roles.intersection(rule.roles):
             return False
 
-        return True
+        return all(cls._condition_matches(condition, request) for condition in rule.conditions)
+
+    @classmethod
+    def _condition_matches(
+        cls,
+        condition: AttributeCondition,
+        request: AccessRequest,
+    ) -> bool:
+        actual = cls._resolve_attribute(condition.attribute, request)
+        operator = condition.operator
+
+        if operator is ConditionOperator.EXISTS:
+            return actual is not _MISSING
+        if operator is ConditionOperator.NOT_EXISTS:
+            return actual is _MISSING
+        if actual is _MISSING:
+            return False
+
+        expected: Any = condition.value
+        if isinstance(expected, AttributeReference):
+            expected = cls._resolve_attribute(expected.path, request)
+            if expected is _MISSING:
+                return False
+
+        if operator is ConditionOperator.EQ:
+            return cls._safe_equal(actual, expected)
+        if operator is ConditionOperator.NE:
+            if not cls._compatible_values(actual, expected):
+                return False
+            return not cls._safe_equal(actual, expected)
+        if operator in {ConditionOperator.IN, ConditionOperator.NOT_IN}:
+            if not isinstance(expected, (tuple, frozenset)) or not expected:
+                return False
+            if not any(cls._compatible_values(actual, item) for item in expected):
+                return False
+            is_member = cls._member_of(actual, expected)
+            return is_member if operator is ConditionOperator.IN else not is_member
+        if operator is ConditionOperator.CONTAINS:
+            return cls._contains(actual, expected)
+
+        if (
+            not isinstance(actual, (int, float))
+            or isinstance(actual, bool)
+            or not isinstance(expected, (int, float))
+            or isinstance(expected, bool)
+        ):
+            return False
+        if not isfinite(actual) or not isfinite(expected):
+            return False
+        if operator is ConditionOperator.GT:
+            return actual > expected
+        if operator is ConditionOperator.GTE:
+            return actual >= expected
+        if operator is ConditionOperator.LT:
+            return actual < expected
+        if operator is ConditionOperator.LTE:
+            return actual <= expected
+        return False
+
+    @staticmethod
+    def _resolve_attribute(path: str, request: AccessRequest) -> object:
+        """Resolve a validated path using mapping lookup only; never use getattr/eval."""
+
+        parts = path.split(".")
+        root = parts[0]
+
+        if root == "principal":
+            if parts[1] == "principal_id":
+                return request.principal.principal_id
+            if parts[1] == "roles":
+                return request.principal.roles
+            current: object = request.principal.attributes
+            remaining = parts[2:]
+        elif root == "resource":
+            if parts[1] == "id":
+                return request.resource
+            current = request.resource_attributes
+            remaining = parts[2:]
+        else:
+            current = request.context
+            remaining = parts[1:]
+
+        for part in remaining:
+            if not isinstance(current, Mapping) or part not in current:
+                return _MISSING
+            current = current[part]
+        return current
+
+    @staticmethod
+    def _compatible_values(left: object, right: object) -> bool:
+        """Reject type-confused NE/NOT_IN matches instead of treating them as grants."""
+
+        if type(left) is type(right):
+            return True
+        return type(left) in (int, float) and type(right) in (int, float)
+
+    @classmethod
+    def _safe_equal(cls, left: object, right: object) -> bool:
+        """Use predictable JSON-like equality without bool/int coercion."""
+
+        if type(left) is not type(right):
+            if (
+                type(left) in (int, float)
+                and type(right) in (int, float)
+                and type(left) is not bool
+                and type(right) is not bool
+            ):
+                return left == right
+            return False
+        if isinstance(left, Mapping) and isinstance(right, Mapping):
+            if left.keys() != right.keys():
+                return False
+            return all(cls._safe_equal(left[key], right[key]) for key in left)
+        if isinstance(left, tuple) and isinstance(right, tuple):
+            return len(left) == len(right) and all(
+                cls._safe_equal(left_item, right_item)
+                for left_item, right_item in zip(left, right, strict=True)
+            )
+        return left == right
+
+    @classmethod
+    def _member_of(cls, value: object, collection: object) -> bool:
+        if not isinstance(collection, (tuple, frozenset)):
+            return False
+        return any(cls._safe_equal(value, candidate) for candidate in collection)
+
+    @classmethod
+    def _contains(cls, container: object, value: object) -> bool:
+        if isinstance(container, str):
+            return isinstance(value, str) and value in container
+        if isinstance(container, Mapping):
+            return isinstance(value, str) and value in container
+        if isinstance(container, (tuple, frozenset)):
+            return any(cls._safe_equal(value, item) for item in container)
+        return False
