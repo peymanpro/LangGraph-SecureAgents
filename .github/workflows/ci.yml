@@ -194,6 +194,76 @@ jobs:
           )
           assert callable(middleware.wrap_tool_call)
           print("Optional middleware extra smoke test passed.")
+          PY
+
+      - name: Smoke-test optional LangGraph node guard
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-langgraph
+          /tmp/langgraph-secure-agents-langgraph/bin/python -m pip install ".[langgraph]"
+          /tmp/langgraph-secure-agents-langgraph/bin/python - <<'PY'
+          from typing import TypedDict
+
+          from langgraph.graph import END, START, StateGraph
+          from langgraph.runtime import Runtime
+
+          from langgraph_secure_agents import AuthorizationDenied, Effect, PolicyEngine, PolicyRule, Principal
+          from langgraph_secure_agents.langgraph import protect_node
+
+          class State(TypedDict):
+              completed: bool
+
+          class Context(TypedDict):
+              user_id: str
+              roles: list[str]
+
+          policy = PolicyEngine([
+              PolicyRule(
+                  rule_id="smoke-refund",
+                  effect=Effect.ALLOW,
+                  actions=frozenset({"refund"}),
+                  resources=frozenset({"order:42"}),
+                  roles=frozenset({"operator"}),
+              )
+          ])
+          executions: list[str] = []
+
+          def refund(state: State, runtime: Runtime[Context]) -> dict[str, bool]:
+              executions.append(runtime.context["user_id"])
+              return {"completed": True}
+
+          def resolve_principal(context: object) -> Principal:
+              if not isinstance(context, dict):
+                  raise TypeError("expected trusted context mapping")
+              return Principal(context["user_id"], roles=frozenset(context["roles"]))
+
+          protected = protect_node(
+              refund,
+              policy=policy,
+              principal_resolver=resolve_principal,
+              action="refund",
+              resource_resolver=lambda _state: "order:42",
+          )
+          builder = StateGraph(State, context_schema=Context)
+          builder.add_node("refund", protected)
+          builder.add_edge(START, "refund")
+          builder.add_edge("refund", END)
+          graph = builder.compile()
+          assert graph.invoke(
+              {"completed": False},
+              context={"user_id": "smoke-user", "roles": ["operator"]},
+          )["completed"]
+          try:
+              graph.invoke(
+                  {"completed": False},
+                  context={"user_id": "guest", "roles": ["viewer"]},
+              )
+          except AuthorizationDenied:
+              pass
+          else:
+              raise AssertionError("unauthorized node unexpectedly executed")
+          assert executions == ["smoke-user"], executions
+          print("Optional LangGraph node authorization smoke test passed.")
+          PY
       - name: Smoke-test optional OpenTelemetry audit extra
         run: |
           python -m venv /tmp/langgraph-secure-agents-otel
