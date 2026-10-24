@@ -374,8 +374,24 @@ def test_middleware_rejects_invalid_configuration() -> None:
         ({"principal_resolver": None}, TypeError, "principal_resolver must be callable"),
         ({"action_resolver": object()}, TypeError, "action_resolver must be callable"),
         ({"resource_resolver": object()}, TypeError, "resource_resolver must be callable"),
+        (
+            {"resource_attributes_resolver": object()},
+            TypeError,
+            "resource_attributes_resolver must be callable",
+        ),
+        ({"context_resolver": object()}, TypeError, "context_resolver must be callable"),
         ({"audit_callback": object()}, TypeError, "audit_callback must be callable"),
+        (
+            {"audit_event_callback": object()},
+            TypeError,
+            "audit_event_callback must be callable",
+        ),
         ({"approval_validator": object()}, TypeError, "approval_validator must be callable"),
+        (
+            {"approval_reviewer_resolver": object()},
+            TypeError,
+            "approval_reviewer_resolver must be callable",
+        ),
     ]
 
     for overrides, exception, message in cases:
