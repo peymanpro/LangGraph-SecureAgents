@@ -379,3 +379,56 @@ def test_lint_is_quiet_for_narrow_policy_rules() -> None:
     )
 
     assert bundle.lint() == ()
+
+
+
+def test_file_round_trip_supports_json_and_yaml(tmp_path: pytest.TempPathFactory) -> None:
+    bundle = sample_bundle()
+    json_path = tmp_path / "policy.json"  # type: ignore[operator]
+    yaml_path = tmp_path / "policy.yaml"  # type: ignore[operator]
+
+    assert bundle.to_file(json_path) == json_path
+    assert PolicyBundle.from_file(json_path) == bundle
+
+    assert bundle.to_file(yaml_path) == yaml_path
+    assert PolicyBundle.from_file(yaml_path) == bundle
+
+
+def test_file_api_rejects_unsupported_extensions(tmp_path: pytest.TempPathFactory) -> None:
+    bundle = sample_bundle()
+    invalid_path = tmp_path / "policy.txt"  # type: ignore[operator]
+
+    with pytest.raises(ValueError, match="must use .json"):
+        bundle.to_file(invalid_path)
+
+    with pytest.raises(ValueError, match="must use .json"):
+        PolicyBundle.from_file(invalid_path)
+
+
+def test_yaml_parser_rejects_duplicate_keys_and_malformed_yaml() -> None:
+    duplicate = """
+schema_version: 1
+schema_version: 1
+policy_id: sample
+version: 1.0.0
+rules: []
+"""
+    with pytest.raises(ValueError, match="duplicate key"):
+        PolicyBundle.from_yaml(duplicate)
+
+    with pytest.raises(ValueError, match="invalid policy bundle YAML"):
+        PolicyBundle.from_yaml("schema_version: [")
+
+
+def test_bundle_rejects_boolean_schema_version_and_non_string_condition_operator() -> None:
+    payload = sample_bundle().to_dict()
+    payload["schema_version"] = True
+
+    with pytest.raises(ValueError, match="unsupported policy bundle schema_version"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    payload["rules"][0]["conditions"][0]["operator"] = ["eq"]  # type: ignore[index]
+
+    with pytest.raises(ValueError, match="operator must be a string"):
+        PolicyBundle.from_dict(payload)
