@@ -100,8 +100,7 @@ class SQLiteAuditSink:
             self._connection.execute("BEGIN IMMEDIATE")
             try:
                 last = self._connection.execute(
-                    "SELECT sequence, entry_hash FROM audit_records "
-                    "ORDER BY sequence DESC LIMIT 1"
+                    "SELECT sequence, entry_hash FROM audit_records ORDER BY sequence DESC LIMIT 1"
                 ).fetchone()
                 sequence = 1 if last is None else int(last[0]) + 1
                 previous_hash = _GENESIS_HASH if last is None else str(last[1])
