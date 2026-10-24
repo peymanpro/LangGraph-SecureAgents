@@ -344,6 +344,7 @@ from langgraph.runtime import Runtime
 from langgraph_secure_agents import PolicyEngine, Principal
 from langgraph_secure_agents.langgraph import protect_node
 
+
 class RequestContext(TypedDict):
     user_id: str
     roles: list[str]
