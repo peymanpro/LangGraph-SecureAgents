@@ -11,7 +11,14 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .models import AccessRequest, AttributeCondition, AttributeReference, Decision, Effect, PolicyRule
+from .models import (
+    AccessRequest,
+    AttributeCondition,
+    AttributeReference,
+    Decision,
+    Effect,
+    PolicyRule,
+)
 from .policy import PolicyEngine, PolicyExplanation
 
 _SCHEMA_VERSION = 1
@@ -124,7 +131,11 @@ def _parse_condition(value: object, index: int) -> AttributeCondition:
         operand = condition["value"]
     else:
         operand = None
-    if condition["operator"] not in {"exists", "not_exists"} and not has_value and not has_reference:
+    if (
+        condition["operator"] not in {"exists", "not_exists"}
+        and not has_value
+        and not has_reference
+    ):
         raise ValueError(f"{where} requires 'value' or 'value_from'")
     if condition["operator"] in {"exists", "not_exists"} and (has_value or has_reference):
         raise ValueError(f"{where} does not accept 'value' or 'value_from'")
@@ -442,7 +453,9 @@ class PolicyBundle:
                         code="SEC002",
                         severity=DiagnosticSeverity.WARNING,
                         rule_id=rule.rule_id,
-                        message="This allow rule applies to every principal; prefer explicit subjects.",
+                        message=(
+                            "This allow rule applies to every principal; prefer explicit subjects."
+                        ),
                     )
                 )
             if (
@@ -496,7 +509,9 @@ class PolicyBundle:
             type(payload["schema_version"]) is not int
             or payload["schema_version"] != _SCHEMA_VERSION
         ):
-            raise ValueError(f"unsupported policy bundle schema_version: {payload['schema_version']!r}")
+            raise ValueError(
+                f"unsupported policy bundle schema_version: {payload['schema_version']!r}"
+            )
         if not isinstance(payload["rules"], list):
             raise ValueError("bundle.rules must be a list")
         if "description" in payload and not isinstance(payload["description"], str):
