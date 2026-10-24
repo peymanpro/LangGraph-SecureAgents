@@ -4,6 +4,29 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.7.1 (2026-10-24)
+
+### Bug Fixes
+
+- Normalize resource IDs before metadata lookup
+  ([`5c53078`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5c530782e0556423901a520d7ad3a180dd144d59))
+
+### Code Style
+
+- Format resource normalization regression tests
+  ([`944da5f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/944da5ffcd18b8dbcc4de39b13fe9754c2b8d0a1))
+
+### Documentation
+
+- Clarify canonical resource resolution contract
+  ([`41609ef`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/41609ef21f984a72ebf4dea14463174b3a2c78d6))
+
+### Testing
+
+- Cover resource normalization across authorization paths
+  ([`504e2d0`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/504e2d0dab883146608183bc50b5930eb84e0244))
+
+
 ## v0.7.0 (2026-10-24)
 
 ### Bug Fixes
