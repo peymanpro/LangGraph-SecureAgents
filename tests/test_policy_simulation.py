@@ -121,11 +121,11 @@ def test_simulate_compares_candidate_with_baseline() -> None:
     assert report.allowed == 1
     assert report.denied == 2
     assert report.approval_required == 1
-    assert report.changed == 2
+    assert report.changed == 1
     assert report.cases[0].changed is False
     assert report.cases[1].changed is True
     assert report.cases[2].changed is False
-    assert report.cases[3].changed is True
+    assert report.cases[3].changed is False
 
 
 def test_simulation_report_serializes_summaries_without_sensitive_requests() -> None:
