@@ -282,6 +282,7 @@ def test_opentelemetry_callback_rejects_invalid_configuration(kwargs: dict[str, 
     with pytest.raises(ValueError):
         create_opentelemetry_callback(**kwargs)  # type: ignore[arg-type]
 
+
 def test_audit_event_rejects_malformed_optional_and_collection_fields() -> None:
     with pytest.raises(ValueError, match="request_id must be a non-empty string"):
         sample_event(request_id=" ")
