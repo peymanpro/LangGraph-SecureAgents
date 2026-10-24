@@ -214,4 +214,3 @@ jobs:
           callback(event)
           print("Optional OpenTelemetry audit extra smoke test passed.")
           PY
-          PY
