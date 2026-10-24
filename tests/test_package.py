@@ -11,7 +11,6 @@ def test_package_exposes_version() -> None:
     assert __version__ == distribution_version("langgraph-secure-agents")
 
 
-
 def test_source_checkout_version_falls_back_without_distribution_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
