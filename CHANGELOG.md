@@ -4,6 +4,14 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.4.0 (2026-10-24)
+
+### Features
+
+- **audit**: Add structured authorization events and OpenTelemetry integration
+  ([`ca721fd`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ca721fde07032fc0c9ce788cc8e4a2c4b17db239))
+
+
 ## v0.3.1 (2026-10-24)
 
 ### Bug Fixes
