@@ -105,6 +105,7 @@ def test_store_rejects_naive_clock_and_invalid_identifiers(tmp_path: Path) -> No
     assert store.consume("", "fingerprint", "reviewer") is False
     store.close()
 
+
 def test_database_failures_propagate_and_transactions_are_rolled_back(
     tmp_path: Path,
 ) -> None:
