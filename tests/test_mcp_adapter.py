@@ -9,7 +9,6 @@ from mcp import Client
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 
-from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
 from langgraph_secure_agents import (
     AttributeCondition,
     AttributeReference,
@@ -21,6 +20,7 @@ from langgraph_secure_agents import (
     PolicyRule,
     Principal,
 )
+from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
 
 
 _CUSTOMERS = {
