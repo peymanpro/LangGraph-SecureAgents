@@ -190,7 +190,16 @@ def test_bundle_rejects_unsupported_schema_version(schema_version: object) -> No
 
 @pytest.mark.parametrize(
     "version",
-    ["", "latest", "1.0", "01.0.0", "1.0.0-", "1.0.0-alpha..beta", "1.0.0-01", "1.0.0+build..metadata"],
+    [
+        "",
+        "latest",
+        "1.0",
+        "01.0.0",
+        "1.0.0-",
+        "1.0.0-alpha..beta",
+        "1.0.0-01",
+        "1.0.0+build..metadata",
+    ],
 )
 def test_bundle_requires_semantic_policy_version(version: str) -> None:
     with pytest.raises(ValueError, match="semantic version"):
