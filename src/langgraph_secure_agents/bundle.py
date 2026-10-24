@@ -185,11 +185,14 @@ class SimulationCase:
 
     @property
     def changed(self) -> bool | None:
-        """Whether the decision or its matched-rule explanation differs from baseline."""
+        """Whether the effective outcome (allow, deny, or approval) differs from baseline."""
 
         if self.baseline_decision is None:
             return None
-        return self.decision != self.baseline_decision
+        return (
+            self.decision.allowed != self.baseline_decision.allowed
+            or self.decision.requires_approval != self.baseline_decision.requires_approval
+        )
 
 
 @dataclass(frozen=True, slots=True)
