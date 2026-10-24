@@ -374,6 +374,24 @@ python examples/policy_guarded_workflow.py
 
 The example shows one allowed HR request and two denied requests: one for an unapproved resource and one from a caller without the required role.
 
+### End-to-end security workflow
+
+Run the complete model-free scenario:
+
+```bash
+python examples/secure_agent_workflow.py
+```
+
+The example uses the actual policy engine, LangGraph checkpointed interrupt, SQLite approval store, and SQLite audit sink. It demonstrates that a same-tenant customer read succeeds, a cross-tenant read is denied before the handler runs, a refund pauses until a reviewer-bound one-time grant is issued, and replaying that grant against another execution is rejected. At the end it prints the executed operations, audit decision reasons, and audit-chain integrity result.
+
+The default run uses temporary SQLite files and removes them on exit. To retain the local databases for inspection, pass a directory:
+
+```bash
+python examples/secure_agent_workflow.py --data-dir ./.secure-agent-demo
+```
+
+The reviewer identity in this example is supplied by a server-side `ContextVar` to model trusted resume-endpoint state. This is a runnable demonstration, not a production authentication service: a real host must authenticate the reviewer, authorize approval of the exact pending action, protect the resume endpoint, and manage database access, backups, and retention.
+
 ## Development and testing
 
 Install the development dependencies from a source checkout:
@@ -393,6 +411,7 @@ CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
 - [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, simulation, and atomic policy-registry operations.
 - [Approval store](docs/approval-store.md) — expiring one-time grants and trusted reviewer binding.
+- [End-to-end security workflow](examples/secure_agent_workflow.py) — model-free customer access, human-approved refund, replay rejection, and audit verification.
 - [Audit events](docs/audit-events.md) — structured decision events, SQLite persistence, integrity verification, privacy controls, and OpenTelemetry integration.
 - [Security policy](SECURITY.md) — project status and vulnerability reporting.
 - [Changelog](CHANGELOG.md) — user-facing changes by release.
