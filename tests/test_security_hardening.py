@@ -194,9 +194,7 @@ def test_middleware_uses_one_current_policy_registry_snapshot_for_audit() -> Non
     assert isinstance(first, ToolMessage)
     assert first.content == "first"
 
-    registry.publish(
-        PolicyBundle(policy_id="test-policy", version="1.1.0", rules=())
-    )
+    registry.publish(PolicyBundle(policy_id="test-policy", version="1.1.0", rules=()))
     second = middleware.wrap_tool_call(
         request(context={}),
         lambda value: ToolMessage(content="must-not-run", tool_call_id="call-1"),
