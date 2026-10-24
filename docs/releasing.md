@@ -1,18 +1,21 @@
 # Release process
 
-Every merged project update should be reflected in a new package release on PyPI. Pushes to `main` run the release workflow; a validated, Conventional Commit message determines the version increment. Do not create version tags or upload packages manually.
+A push to `main` always starts the release workflow's validation jobs. A package release is created only if those jobs pass **and** Python Semantic Release finds at least one release-triggering commit since the last release tag. A workflow run is not itself a release. Changes that use only no-release commit types can pass CI without creating a version commit, Git tag, GitHub Release, or PyPI publication. Do not create version tags or upload packages manually.
 
 ## Versioning policy
 
 The canonical version is `project.version` in `pyproject.toml`. The package's `__version__` is read from installed distribution metadata, so it follows the version of the wheel/sdist instead of maintaining a second hard-coded number. From an uninstalled source checkout, it reports `0+unknown`.
 
-The release workflow uses these increments:
+The policy is configured in `pyproject.toml` and tested against the same pinned `python-semantic-release==10.7.0` implementation used by the release workflow:
 
 - `feat:` produces a minor release.
-- `fix:`, `perf:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, and `test:` produce a patch release.
-- A breaking-change marker such as `feat!:` or a `BREAKING CHANGE:` footer increments the minor version while the project remains on `0.x`, as configured by `major_on_zero = false`.
+- `fix:` and `perf:` produce a patch release.
+- `build:` produces a patch release when the change affects the package build, installation, or distribution. Routine workflow and maintainer-tooling changes should use `ci:` or `chore:` instead.
+- `docs:`, `test:`, `ci:`, `style:`, `refactor:`, and `chore:` are allowed, but do not trigger a release by themselves.
+- Breaking changes marked with `!` (for example, `feat!:`) or a `BREAKING CHANGE:` footer take precedence over the normal type. Because `allow_zero_version = true` and `major_on_zero = false`, a breaking change while the package remains on `0.x` increments the minor version (for example, `0.8.0` to `0.9.0`). Once the package reaches `1.x`, a breaking change increments the major version.
+- When a set of commits contains multiple eligible changes, the highest applicable bump wins.
 
-Use one of these Conventional Commit types for every change intended to update the published package. In particular, documentation-only changes produce a new patch release so the README shown on PyPI stays synchronized with the repository.
+Use Conventional Commit types to describe the impact on package consumers, not merely the files changed. For example, a README-only change should use `docs:` and must not publish a release by itself; fixing a wheel's install metadata can use `build:` and trigger a patch release.
 
 ## Automated release workflow
 
@@ -27,7 +30,7 @@ On a push to `main`, GitHub Actions:
 
 The PyPI publishing job runs only after the release job succeeds. It receives `id-token: write` but no repository-content permission; no permanent PyPI API token is used. The PyPI Trusted Publisher must be configured for owner `peymanpro`, repository `LangGraph-SecureAgents`, workflow `.github/workflows/release.yml`, and the GitHub environment `pypi`. The environment must not require a manual reviewer when fully automatic publishing is desired.
 
-The workflow's version commit is tagged as the release itself. A subsequent merge triggers the next version analysis; no manual tag creation is required.
+The workflow's version commit is tagged as the release itself. Subsequent pushes to `main` trigger validation and version analysis, but only eligible commit types can create the next release; no manual tag creation is required.
 
 ## Verification after each release
 
