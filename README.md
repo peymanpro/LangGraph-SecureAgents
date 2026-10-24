@@ -8,9 +8,9 @@
 [![Latest GitHub release](https://img.shields.io/github/v/release/peymanpro/LangGraph-SecureAgents)](https://github.com/peymanpro/LangGraph-SecureAgents/releases)
 [![MIT License](https://img.shields.io/github/license/peymanpro/LangGraph-SecureAgents)](LICENSE)
 
-LangGraph-SecureAgents evaluates authorization in trusted application code and can enforce the decision immediately before a protected Python callable or agent tool executes. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
+LangGraph-SecureAgents evaluates authorization in trusted application code and enforces decisions immediately before protected Python callables, agent tools, and—when the optional MCP adapter is installed—explicitly decorated MCP server tool handlers execute. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
 
-**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
+**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, decorating every sensitive MCP tool handler, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
 
 ## What it provides
 
