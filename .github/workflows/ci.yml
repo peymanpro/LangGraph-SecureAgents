@@ -214,3 +214,40 @@ jobs:
           callback(event)
           print("Optional OpenTelemetry audit extra smoke test passed.")
           PY
+      - name: Smoke-test optional MCP tool adapter
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-mcp
+          /tmp/langgraph-secure-agents-mcp/bin/python -m pip install ".[mcp]"
+          /tmp/langgraph-secure-agents-mcp/bin/python - <<'PY'
+          from mcp.server import MCPServer
+          from mcp.server.mcpserver import Context
+
+          from langgraph_secure_agents import Effect, PolicyEngine, PolicyRule, Principal
+          from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
+
+          server = MCPServer("mcp-extra-smoke")
+          policy = PolicyEngine([
+              PolicyRule(
+                  rule_id="mcp-extra-smoke",
+                  effect=Effect.ALLOW,
+                  actions=frozenset({"read"}),
+                  resources=frozenset({"read_probe"}),
+                  roles=frozenset({"smoke"}),
+              )
+          ])
+
+          @server.tool()
+          @protect_mcp_tool(
+              policy=policy,
+              principal_resolver=lambda _ctx: Principal(
+                  "smoke-user", roles=frozenset({"smoke"})
+              ),
+              action="read",
+          )
+          def read_probe(ctx: Context) -> str:
+              """Smoke-test an MCP-registered protected tool."""
+              return "ok"
+
+          assert callable(read_probe)
+          print("Optional MCP tool adapter smoke test passed.")
+          PY

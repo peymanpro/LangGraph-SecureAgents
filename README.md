@@ -8,9 +8,9 @@
 [![Latest GitHub release](https://img.shields.io/github/v/release/peymanpro/LangGraph-SecureAgents)](https://github.com/peymanpro/LangGraph-SecureAgents/releases)
 [![MIT License](https://img.shields.io/github/license/peymanpro/LangGraph-SecureAgents)](LICENSE)
 
-LangGraph-SecureAgents evaluates authorization in trusted application code and can enforce the decision immediately before a protected Python callable or agent tool executes. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
+LangGraph-SecureAgents evaluates authorization in trusted application code and enforces decisions immediately before protected Python callables, agent tools, and—when the optional MCP adapter is installed—explicitly decorated MCP server tool handlers execute. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
 
-**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
+**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, decorating every sensitive MCP tool handler, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
 
 ## What it provides
 
@@ -20,6 +20,7 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and c
 - **Structured authorization audit events** with privacy-conscious serialization, an optional OpenTelemetry adapter, and a durable SQLite sink with a verifiable hash chain.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
+- **Optional MCP server tool decorator** that evaluates policies inside each registered MCP handler, without relying on the MCP SDK's provisional generic middleware hook.
 - **Human-approval interrupts** for selected sensitive agent actions, with SQLite-backed expiring approval tokens that are bound to a reviewer and consumed once.
 - **Fail-closed controls** when configured audit callbacks or authorization-related checks fail.
 
@@ -62,13 +63,19 @@ For the optional LangChain/LangGraph agent middleware:
 python -m pip install "langgraph-secure-agents[langchain-agents]"
 ```
 
+For the optional MCP server tool adapter:
+
+```bash
+python -m pip install "langgraph-secure-agents[mcp]"
+```
+
 For the optional OpenTelemetry audit adapter:
 
 ```bash
 python -m pip install "langgraph-secure-agents[opentelemetry]"
 ```
 
-The core policy engine does not require an LLM provider, the optional agent middleware, or telemetry dependencies.
+The core policy engine does not require an LLM provider, the optional agent middleware, MCP SDK, or telemetry dependencies.
 
 ## Quick start: evaluate an authorization policy
 
@@ -352,6 +359,34 @@ authorization_middleware = create_authorization_middleware(
 
 `resolve_trusted_reviewer` must derive the reviewer from authenticated, server-side state—not from model output or the approval payload. The host must verify that the reviewer may approve the exact pending operation before issuing a token. Use a persistent database path when grants must survive restarts, keep token lifetimes short, and never reuse operation IDs or request fingerprints. Expired rows are not deleted automatically; call `approval_store.purge_expired()` according to your retention requirements. The store binds and consumes grants, but does not authenticate reviewers or protect the resume endpoint.
 
+## Optional MCP tool authorization
+
+For an MCP server built with MCP Python SDK v2, apply `protect_mcp_tool` inside the server's tool decorator. The adapter enforces the policy before the original handler runs, preserves the handler signature so the SDK can inject its trusted `Context` object, and emits structured `mcp_tool` audit events when configured.
+
+```python
+from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
+
+from langgraph_secure_agents import PolicyEngine, Principal
+from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
+
+server = MCPServer("Customer service")
+
+
+@server.tool()
+@protect_mcp_tool(
+    policy=PolicyEngine(...),
+    principal_resolver=principal_from_trusted_auth,
+    action="read",
+    resource_resolver=lambda args: f"customer:{args['customer_id']}",
+    resource_attributes_resolver=load_trusted_customer_attributes,
+)
+def read_customer(customer_id: str, ctx: Context) -> str:
+    return customer_store.read(customer_id)
+```
+
+The host must derive identity from trusted authentication state; do not trust model arguments or caller-controlled headers. The adapter fails closed when authorization or configured auditing fails. It does not implement MCP-side human approval interrupts; use the LangGraph approval flow for checkpointed reviewer interactions. See the [MCP integration guide](docs/mcp-integration.md) and [secured MCP server example](examples/mcp_secure_server.py).
+
 ## Security responsibilities
 
 Integrators must:
@@ -404,7 +439,7 @@ mypy src
 pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional middleware extra, and optional OpenTelemetry extra.
+CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional middleware extra, optional MCP extra, and optional OpenTelemetry extra.
 
 ## Project documentation
 
@@ -412,6 +447,8 @@ CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and
 - [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, simulation, and atomic policy-registry operations.
 - [Approval store](docs/approval-store.md) — expiring one-time grants and trusted reviewer binding.
 - [End-to-end security workflow](examples/secure_agent_workflow.py) — model-free customer access, human-approved refund, replay rejection, and audit verification.
+- [MCP integration](docs/mcp-integration.md) — handler-level authorization, trusted Context, and optional MCP SDK setup.
+- [Secured MCP server example](examples/mcp_secure_server.py) — a runnable MCP server with tenant-aware access control.
 - [Audit events](docs/audit-events.md) — structured decision events, SQLite persistence, integrity verification, privacy controls, and OpenTelemetry integration.
 - [Security policy](SECURITY.md) — project status and vulnerability reporting.
 - [Changelog](CHANGELOG.md) — user-facing changes by release.
