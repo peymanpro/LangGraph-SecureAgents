@@ -173,3 +173,33 @@ def test_concurrent_appends_preserve_a_contiguous_valid_hash_chain() -> None:
     )
     assert sink.verify_integrity()
     sink.close()
+
+@pytest.mark.parametrize(
+    ("payload_json", "failure"),
+    [
+        ("not-json", "invalid-json"),
+        ("[]", "not-object"),
+        ('{"event_id":"wrong-id","timestamp":"2026-10-24T12:30:00Z"}', "event-id"),
+        ('{"event_id":"event-1","timestamp":"2026-10-24T12:30:01Z"}', "timestamp"),
+    ],
+)
+def test_integrity_verification_rejects_malformed_or_mismatched_payloads(
+    tmp_path: Path,
+    payload_json: str,
+    failure: str,
+) -> None:
+    database = tmp_path / f"invalid-{failure}.sqlite3"
+    sink = SQLiteAuditSink(database)
+    sink.append(sample_event("event-1"))
+    sink.close()
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE audit_records SET payload_json = ? WHERE sequence = 1",
+            (payload_json,),
+        )
+
+    tampered = SQLiteAuditSink(database)
+    assert tampered.verify_integrity() is False
+    tampered.close()
+
