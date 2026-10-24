@@ -235,7 +235,9 @@ def test_async_node_is_authorized_before_its_body_runs() -> None:
         side_effects.append(state["resource_id"])
         return {"completed": True}
 
-    result = asyncio.run(_graph(refund_node, _policy()).ainvoke(_initial_state(), context=_context()))
+    result = asyncio.run(
+        _graph(refund_node, _policy()).ainvoke(_initial_state(), context=_context())
+    )
     assert result["completed"] is True
     assert side_effects == ["order:42"]
 
