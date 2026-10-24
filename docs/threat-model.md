@@ -31,7 +31,7 @@ Policy rules are application security configuration. Only trusted operators or c
 
 Versioned PolicyBundle files provide strict JSON/YAML parsing, immutable in-memory rules, a policy ID/version, a content digest, lint diagnostics, rule explanations, and candidate-versus-baseline simulation. Parsing rejects unknown schema fields and duplicate JSON/YAML keys. Lint results are advisory and do not change enforcement; teams should make lint findings and simulation results part of their own release process.
 
-The SHA-256 bundle digest identifies serialized content; it is not a signature and does not prove origin or authenticity. This library does not provide a trusted policy registry, signed policy delivery, automatic hot reload, deployment approvals, or rollback orchestration. Protect policy files and their deployment pipeline as security-sensitive configuration.
+The SHA-256 bundle digest identifies serialized content; it is not a signature and does not prove origin or authenticity. The optional PolicyRegistry atomically publishes complete snapshots within one process, supports generation checks, and retains a bounded in-memory rollback history. It does not persist registry history, watch files automatically, coordinate multiple worker processes, authenticate deployers, or sign policy delivery. Protect policy files and their deployment pipeline as security-sensitive configuration.
 
 ### Resolver purity and underlying resource
 
@@ -47,7 +47,7 @@ Downstream APIs, databases, and storage systems should continue enforcing their 
 
 The library supports both the legacy request/decision callback and structured AuditEvent callbacks. Structured serializers and the optional OpenTelemetry adapter redact principal/resource identifiers, matched rule IDs, policy digests, and correlation IDs by default. A custom callback receives the full event object, including sensitive identifiers, and must send it only to a trusted sink. Request attribute values and raw tool arguments are not copied into the event.
 
-Configured callbacks run synchronously before a protected callable or tool handler executes. Callback failure stops protected execution (fail-closed behavior). For approval-required middleware calls, the structured callback records the pending policy decision before the interrupt and the final approval outcome after resume. The host application is responsible for durable storage, access control, retention, retries, monitoring, and tamper-evident protection. Without a configured callback, the library does not persist audit logs.
+Configured callbacks run synchronously before a protected callable or tool handler executes. Callback failure stops protected execution (fail-closed behavior). For approval-required middleware calls, the structured callback records the pending policy decision before the interrupt and the final approval outcome after resume. SQLiteAuditSink provides synchronous local persistence and a verifiable hash chain, but the host remains responsible for database access control, backups, retention/archival, capacity monitoring, remote delivery, and external anchoring of chain heads. Without a configured callback, the library does not persist audit logs.
 
 ## Authorization semantics
 
@@ -55,7 +55,7 @@ Configured callbacks run synchronously before a protected callable or tool handl
 - An explicit matching deny rule overrides matching allow rules.
 - Actions and resources use exact matching, except for a standalone wildcard selector.
 - When a rule specifies both principal IDs and roles, both constraints must match.
-- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal and its attributes, roles, tool call, canonical JSON arguments, resource attributes, context attributes, action, resource, matched policy definitions including ABAC conditions, and LangGraph execution scope (`thread_id`, `checkpoint_id`, `checkpoint_ns`, and `task_id`). Approval-required calls fail closed when this metadata or an active checkpointer is unavailable. This makes an identical request in a different checkpoint produce a different fingerprint. The fingerprint does not authenticate a reviewer or itself prevent repeated use of a completely identical approval in the same execution. The host application must authenticate reviewers, authorize access to the resume endpoint, ensure per-operation IDs are unique, and durably consume each approval once for side-effecting tools. The optional `approval_validator` callback allows those controls to be enforced at the middleware boundary; the callback must use trusted reviewer identity and durable atomic consumption, return literal `True` only for a valid first use, and fail closed otherwise. If omitted, those controls remain the host application's responsibility. Applications must not treat a normal allow decision as evidence of human approval.
+- A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal and its attributes, roles, tool call, canonical JSON arguments, resource attributes, context attributes, action, resource, matched policy definitions including ABAC conditions, and LangGraph execution scope (`thread_id`, `checkpoint_id`, `checkpoint_ns`, and `task_id`). Approval-required calls fail closed when this metadata or an active checkpointer is unavailable. This makes an identical request in a different checkpoint produce a different fingerprint. The fingerprint does not authenticate a reviewer. The optional SQLiteApprovalStore issues short-lived opaque tokens, stores only a token hash, binds grants to the request fingerprint and reviewer ID, and atomically consumes a grant once before a handler executes. The host must still authenticate reviewers, authorize access to the resume endpoint, derive reviewer identity from trusted server-side state, ensure operation IDs are unique, and issue a grant only after approving that exact pending request. The alternative `approval_validator` callback can implement equivalent controls with another transactional backend. Without either mechanism, the middleware's legacy fingerprint check is not sufficient for side-effecting operations. Applications must not treat a normal allow decision as evidence of human approval.
 
 ### Attribute-based authorization
 
@@ -73,10 +73,11 @@ Attribute values are recursively frozen and restricted to JSON-compatible data. 
 | A deny rule conflicts with an allow rule | Deny-overrides semantics | Review policy changes |
 | Model output claims the caller has a role | Identity comes from a trusted resolver | Authenticate users and validate claims |
 | A denied tool call would otherwise execute | Enforcement occurs before delegation | Protect every sensitive execution path |
-| Audit callback is configured but unavailable | Fail closed on callback failure | Operate a durable, secured audit backend |
+| Audit callback is configured but unavailable | Fail closed on callback failure; SQLiteAuditSink commits before returning | Manage access, backups, retention, capacity, and external integrity anchors |
 | A scope resolver mutates input arguments | Pass detached copies and reject detected mutation | Keep resolver callbacks trusted and side-effect-free |
+| A stale deployer overwrites a newer policy | Registry generation compare-and-swap rejects stale publication | Coordinate deployments across processes |
 | An approval response is replayed for a different checkpointed execution | Bind the fingerprint to canonical JSON, exact matched rule definitions, and runtime execution scope | Authenticate reviewers and protect the resume endpoint |
-| An approval is reused for an identical side-effecting operation | Optional validator calls a durable atomic consume operation | Require unique operation IDs and implement a persistent transactional store |
+| An approval is reused for an identical side-effecting operation | SQLiteApprovalStore checks fingerprint, reviewer, expiry, and unconsumed status in one transaction | Authenticate the reviewer and secure the resume endpoint |
 
 ## Out of scope
 
@@ -86,7 +87,9 @@ This library does not itself provide:
 - Database-level security or automatic tenant isolation. ABAC can compare trusted tenant/resource attributes, but the application must populate them correctly and guard every sensitive execution path.
 - Prevention of prompt injection, model hallucinations, data exfiltration through tools that are not guarded, or unsafe model-generated code.
 - Rate limiting, secrets management, encryption, network security, or denial-of-service protection.
-- A human reviewer service or proof that an approval came from an authorized reviewer; the host application must supply these.
+- A human reviewer service or proof that an approval came from an authorized reviewer; the host application must supply these. The SQLite approval store manages grants, not identity or reviewer authorization.
+- Cross-process policy distribution, persistent policy history, signed policy delivery, or automatic filesystem watching.
+- Automatic audit retention, asynchronous delivery/retry queues, or protection against an actor who can rewrite the entire SQLite audit database and recompute its hash chain.
 - Formal verification, certification, or an independent security audit.
 
 ## Deployment checklist
@@ -99,7 +102,9 @@ This library does not itself provide:
 - Use resource resolvers that bind the authorization target to the exact resource and tenant used by the protected operation.
 - Apply guards to every path that can invoke a sensitive operation.
 - Keep downstream authorization enabled.
-- Configure an audit callback and handle its failures deliberately.
+- Configure SQLiteAuditSink or another durable audit callback when audit persistence is required; plan backups, retention, and external integrity anchoring.
+- For approval-required side effects, configure SQLiteApprovalStore and derive the reviewer ID from authenticated server-side resume context; do not rely on the fingerprint alone.
+- For policy rollout, use PolicyRegistry generation checks and coordinate publication across all worker processes.
 - Test denied requests, role changes, resource substitution, missing policy matches, and attempted identity spoofing.
 - Review PolicyBundle lint findings and compare candidate policies against representative baseline requests before deployment.
 - Record the policy ID, semantic version, and content digest with your own deployment/audit metadata; do not treat the digest as a signature.
