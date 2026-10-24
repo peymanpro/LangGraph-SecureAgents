@@ -275,7 +275,6 @@ def test_async_callable_authorizes_when_awaited_not_when_coroutine_is_created() 
     asyncio.run(scenario())
 
 
-
 def test_callable_guard_enforces_tenant_abac_before_function_execution() -> None:
     records = {
         "document:42": {"tenant_id": "tenant-a"},
