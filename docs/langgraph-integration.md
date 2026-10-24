@@ -13,16 +13,29 @@ python -m pip install "langgraph-secure-agents[langgraph]"
 ## Protect a node
 
 ```python
+from collections.abc import Mapping
+from typing import TypedDict
+
 from langgraph.runtime import Runtime
 from langgraph_secure_agents import PolicyEngine, Principal
 from langgraph_secure_agents.langgraph import protect_node
 
+class RequestContext(TypedDict):
+    user_id: str
+    roles: list[str]
+
 def resolve_principal(context: object) -> Principal:
-    # Read authenticated identity established by the host application.
-    return Principal(context.user_id, roles=frozenset(context.roles))
+    # The host must populate this context from authenticated server-side data.
+    if not isinstance(context, Mapping):
+        raise TypeError("expected trusted runtime context")
+    return Principal(str(context["user_id"]), roles=frozenset(context["roles"]))
+
+def refund_node(state: dict[str, str], runtime: Runtime[RequestContext]) -> dict[str, bool]:
+    # Call the actual domain operation here.
+    return {"completed": True}
 
 protected_node = protect_node(
-    sensitive_node,
+    refund_node,
     policy=policy,
     principal_resolver=resolve_principal,
     action="refund",
