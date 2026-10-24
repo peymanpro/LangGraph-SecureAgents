@@ -4,6 +4,14 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.7.2 (2026-10-24)
+
+### Documentation
+
+- Align release guide with optional integration smoke tests
+  ([`ada4935`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ada4935bc2dfd3e88ae970d490edda0b40a34f2d))
+
+
 ## v0.7.1 (2026-10-24)
 
 ### Bug Fixes
