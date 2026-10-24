@@ -41,6 +41,9 @@ class AuditEvent:
     allowed: bool
     requires_approval: bool
     matched_rule_ids: tuple[str, ...] = ()
+    request_id: str | None = None
+    execution_id: str | None = None
+    tool_name: str | None = None
     source: str = "authorization"
     policy_id: str | None = None
     policy_version: str | None = None
@@ -102,7 +105,14 @@ class AuditEvent:
             raise ValueError("matched_rule_ids cannot contain duplicates")
         object.__setattr__(self, "matched_rule_ids", rule_ids)
 
-        for name in ("policy_id", "policy_version", "policy_digest"):
+        for name in (
+            "policy_id",
+            "policy_version",
+            "policy_digest",
+            "request_id",
+            "execution_id",
+            "tool_name",
+        ):
             object.__setattr__(self, name, _optional_text(getattr(self, name), name))
 
         if self.duration_ms is not None:
@@ -135,6 +145,9 @@ class AuditEvent:
         *,
         source: str = "authorization",
         duration_ms: float | None = None,
+        request_id: str | None = None,
+        execution_id: str | None = None,
+        tool_name: str | None = None,
         policy_id: str | None = None,
         policy_version: str | None = None,
         policy_digest: str | None = None,
@@ -154,6 +167,9 @@ class AuditEvent:
             allowed=decision.allowed,
             requires_approval=decision.requires_approval,
             matched_rule_ids=decision.matched_rule_ids,
+            request_id=request_id,
+            execution_id=execution_id,
+            tool_name=tool_name,
             source=source,
             policy_id=policy_id,
             policy_version=policy_version,
@@ -194,6 +210,9 @@ class AuditEvent:
             payload["principal_roles"] = list(self.principal_roles)
             payload["resource"] = self.resource
             payload["matched_rule_ids"] = list(self.matched_rule_ids)
+            payload["request_id"] = self.request_id
+            payload["execution_id"] = self.execution_id
+            payload["tool_name"] = self.tool_name
         return payload
 
     def to_json(self, *, include_sensitive: bool = False, indent: int | None = None) -> str:
@@ -209,7 +228,7 @@ class AuditEvent:
         )
 
     def to_otel_attributes(self, *, include_sensitive: bool = False) -> Mapping[str, Any]:
-        """Return low-cardinality span/event attributes with privacy-safe defaults."""
+        """Return span/event attributes with privacy-safe defaults."""
 
         attributes: dict[str, Any] = {
             "event.name": self.event_name,
@@ -232,6 +251,12 @@ class AuditEvent:
             attributes["authorization.principal_roles"] = self.principal_roles
             attributes["authorization.resource"] = self.resource
             attributes["authorization.matched_rule_ids"] = self.matched_rule_ids
+            if self.request_id is not None:
+                attributes["authorization.request_id"] = self.request_id
+            if self.execution_id is not None:
+                attributes["authorization.execution_id"] = self.execution_id
+            if self.tool_name is not None:
+                attributes["authorization.tool_name"] = self.tool_name
             if self.policy_digest is not None:
                 attributes["authorization.policy_digest"] = self.policy_digest
         return attributes
