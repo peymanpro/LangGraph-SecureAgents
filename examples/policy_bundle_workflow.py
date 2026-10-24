@@ -97,11 +97,13 @@ def main() -> None:
     )
 
     report = candidate.simulate(scenarios, baseline=baseline)
-    print("\\nCandidate-versus-baseline simulation:")
+    print()
+    print("Candidate-versus-baseline simulation:")
     print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
 
     explanation = candidate.explain(scenarios[1])
-    print("\\nWhy the cross-tenant request was denied:")
+    print()
+    print("Why the cross-tenant request was denied:")
     print(json.dumps(explanation.to_dict(), indent=2, ensure_ascii=False))
 
 
