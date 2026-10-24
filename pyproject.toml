@@ -69,8 +69,19 @@ packages = ["langgraph_secure_agents"]
 branch = "main"
 tag_format = "v{version}"
 version_toml = ["pyproject.toml:project.version"]
-version_variables = ["src/langgraph_secure_agents/__init__.py:__version__"]
-changelog_file = "CHANGELOG.md"
 commit_message = "chore(release): {version} [skip ci]"
 allow_zero_version = true
 major_on_zero = false
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+parse_squash_commits = true
+ignore_merge_commits = true
+
+[tool.semantic_release.changelog]
+mode = "update"
+insertion_flag = "<!-- version list -->"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"

@@ -10,8 +10,7 @@
 
 LangGraph-SecureAgents evaluates authorization in trusted application code and can enforce the decision immediately before a protected Python callable or agent tool executes. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
 
-> [!WARNING]
-> This is an experimental, pre-1.0 security library. Its API may change, and it has not received an independent security audit. Do not use it as the sole security boundary for production systems or sensitive data.
+**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
 
 ## What it provides
 

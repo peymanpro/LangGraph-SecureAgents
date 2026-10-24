@@ -151,7 +151,16 @@ jobs:
         working-directory: /tmp
         run: |
           /tmp/langgraph-secure-agents-smoke/bin/python - <<'PY'
-          from langgraph_secure_agents import AccessRequest, Effect, PolicyEngine, PolicyRule, Principal
+          from importlib.metadata import version as distribution_version
+
+          from langgraph_secure_agents import (
+              AccessRequest,
+              Effect,
+              PolicyEngine,
+              PolicyRule,
+              Principal,
+              __version__,
+          )
 
           policy = PolicyEngine([
               PolicyRule(
@@ -166,7 +175,9 @@ jobs:
               AccessRequest(Principal("smoke-user", frozenset({"analyst"})), "read", "reports")
           )
           assert decision.allowed, decision
-          print("Installed wheel smoke test passed.")
+          installed_version = distribution_version("langgraph-secure-agents")
+          assert __version__ == installed_version, (__version__, installed_version)
+          print(f"Installed wheel smoke test passed for version {installed_version}.")
           PY
 
       - name: Smoke-test optional LangChain agent extra
