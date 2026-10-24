@@ -28,6 +28,8 @@ _CUSTOMERS = {
     "customer-202": {"tenant_id": "tenant-b", "summary": "Customer 202"},
 }
 
+_MISSING_CONTEXT = cast(Context, None)
+
 
 def _policy() -> PolicyEngine:
     return PolicyEngine(
@@ -213,5 +215,5 @@ def test_adapter_rejects_handlers_without_exactly_one_required_context() -> None
     with pytest.raises(TypeError, match="Context parameter must be required"):
 
         @protector
-        def optional_context(customer_id: str, ctx: Context = cast(Context, None)) -> str:
+        def optional_context(customer_id: str, ctx: Context = _MISSING_CONTEXT) -> str:
             return customer_id
