@@ -308,7 +308,9 @@ class PolicyBundle:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "policy_id", _required_text(self.policy_id, "policy_id"))
-        version = _required_text(self.version, "version")
+        if not isinstance(self.version, str):
+            raise ValueError("version must be a semantic version such as '1.0.0'")
+        version = self.version.strip()
         if not _SEMVER_PATTERN.fullmatch(version):
             raise ValueError("version must be a semantic version such as '1.0.0'")
         object.__setattr__(self, "version", version)
