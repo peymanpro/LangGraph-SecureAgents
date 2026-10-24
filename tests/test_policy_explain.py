@@ -26,7 +26,11 @@ def test_explain_reports_decision_and_condition_results_without_values() -> None
                 roles=frozenset({"analyst"}),
                 conditions=(
                     AttributeCondition("context.environment", ConditionOperator.EQ, "prod"),
-                    AttributeCondition("principal.attributes.clearance", ConditionOperator.EQ, "high"),
+                    AttributeCondition(
+                        "principal.attributes.clearance",
+                        ConditionOperator.EQ,
+                        "high",
+                    ),
                 ),
             ),
             PolicyRule(
