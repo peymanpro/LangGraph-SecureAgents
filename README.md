@@ -4,7 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/langgraph-secure-agents)](https://pypi.org/project/langgraph-secure-agents/)
 [![Python versions](https://img.shields.io/pypi/pyversions/langgraph-secure-agents)](https://pypi.org/project/langgraph-secure-agents/)
-[![CI](https://img.shields.io/github/actions/workflow/status/peymanpro/LangGraph-SecureAgents/release.yml?branch=main&label=CI)](https://github.com/peymanpro/LangGraph-SecureAgents/actions/workflows/release.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/peymanpro/LangGraph-SecureAgents/ci.yml?branch=main&label=CI)](https://github.com/peymanpro/LangGraph-SecureAgents/actions/workflows/ci.yml)
 [![Latest GitHub release](https://img.shields.io/github/v/release/peymanpro/LangGraph-SecureAgents)](https://github.com/peymanpro/LangGraph-SecureAgents/releases)
 [![MIT License](https://img.shields.io/github/license/peymanpro/LangGraph-SecureAgents)](LICENSE)
 
@@ -108,7 +108,13 @@ A request with no matching allow rule is denied by default. An explicit matching
 Wrap a function that accesses a protected resource. The resolver must identify the same resource that the function actually accesses.
 
 ```python
-from langgraph_secure_agents import Principal, PolicyEngine, PolicyRule, Effect, protect_callable
+from langgraph_secure_agents import (
+    Effect,
+    PolicyEngine,
+    PolicyRule,
+    Principal,
+    protect_callable,
+)
 
 report_policy = PolicyEngine(
     [
@@ -153,7 +159,7 @@ authorization_middleware = create_authorization_middleware(
 )
 ```
 
-`resolve_principal` must construct a `Principal` from trusted runtime context. By default, the policy action is `execute` and the resource is the tool name; custom resolvers can map tool calls to domain-specific actions and resources. A denied call returns an error tool message without invoking the tool handler.
+Pass `authorization_middleware` to the agent's middleware configuration. `resolve_principal` must construct a `Principal` from trusted runtime context. By default, the policy action is `execute` and the resource is the tool name; custom resolvers can map tool calls to domain-specific actions and resources. A denied call returns an error tool message without invoking the tool handler.
 
 For sensitive actions, a policy can use `Effect.REQUIRE_APPROVAL` to pause execution for a human decision. This requires LangGraph 1.2 or newer with an active checkpointer. The host application must authenticate the reviewer, secure the resume endpoint, and enforce one-time approval consumption for side-effecting operations. An approval fingerprint alone is not proof of reviewer identity or a one-time token.
 
@@ -177,7 +183,7 @@ The repository includes a model-free LangGraph workflow using mock payroll recor
 python examples/policy_guarded_workflow.py
 ```
 
-The example demonstrates an allowed request and requests denied because of resource or role restrictions.
+The example shows one allowed HR request and two denied requests: one for an unapproved resource and one from a caller without the required role.
 
 ## Development and testing
 
@@ -191,7 +197,7 @@ mypy src
 pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package and optional middleware extra.
+CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package and optional middleware extra.
 
 ## Project documentation
 
