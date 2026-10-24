@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "langgraph-secure-agents"
-version = "0.7.2"
+version = "0.8.0"
 description = "Deterministic authorization for Python callables, LangGraph nodes, agent tools, and MCP tools."
 readme = "README.md"
 license = "MIT"

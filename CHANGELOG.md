@@ -4,6 +4,106 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.8.0 (2026-10-24)
+
+### Code Style
+
+- Format async LangGraph test
+  ([`ac5134f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ac5134f606dd23df8bc9fba302000f8083647817))
+
+- Format async LangGraph test signature
+  ([`acaf204`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/acaf2044ac45ff2fcbaa7694a35481f7f8d132c2))
+
+- Format LangGraph control-flow tests
+  ([`98dbc2d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/98dbc2dbf256c125af0d0319c7b69fc9022a6886))
+
+- Format LangGraph documentation snippets
+  ([`850fd08`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/850fd08c82f12959161dd0f6c11d25e2dd7447a7))
+
+- Format LangGraph documentation snippets
+  ([`9e98193`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/9e981931b6960cf5baf60267d23df5b1540bfb0d))
+
+- Format top-level LangGraph examples
+  ([`25fa394`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/25fa3940d457896a414f3382e0e72ef8491b00be))
+
+- Format top-level LangGraph examples
+  ([`9dbba6e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/9dbba6e4e2dab0330d0bc3bcf8c3e458f26b1629))
+
+- Normalize control-flow test spacing
+  ([`286020a`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/286020af851685163841d570026cf6c3f895fa85))
+
+- Separate example test functions
+  ([`1be0a64`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/1be0a649aeb9e11e5146a2999426dc4e130e7b01))
+
+- Sort LangGraph guard imports
+  ([`272bcb1`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/272bcb1bd593904bff963d9ddb2545fedccc0982))
+
+### Continuous Integration
+
+- Validate changes on develop
+  ([`3c0929b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3c0929b637cda5d36ba7b1cc775a3d913a08bebc))
+
+### Documentation
+
+- Align package metadata with LangGraph integration
+  ([`1bb5135`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/1bb51358898624b722c0fa0c1171ee268c8fa450))
+
+- Align README security model with node guard
+  ([`7c3968e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/7c3968edda1b85a6e2c4edf3fb09b73e3c7a9e3a))
+
+- Clarify release status and integration checks
+  ([`12553d6`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/12553d62fd12334955bb36f14e792a3c33cc071a))
+
+- Clarify trusted LangGraph runtime context
+  ([`baf7820`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/baf782042210f9f16933388c4fa4600b1fcac671))
+
+- Clarify trusted LangGraph runtime context
+  ([`a580bd5`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/a580bd58edd56f44b33e27fdcafbfa0c79a4c10d))
+
+- Define LangGraph node guard threat boundary
+  ([`5a8f684`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5a8f684384d22994aea674f21f61771dd281f0ca))
+
+- Document LangGraph node protection
+  ([`b76bf90`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/b76bf90516e8b991d69d3a77ba9be184dd3f5b13))
+
+- Document LangGraph release smoke test
+  ([`eed7217`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/eed72179353f3ebc6e14c7bc1a2a0b6a505ccf06))
+
+- Explain LangGraph node authorization boundary
+  ([`892e5d9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/892e5d99b36cfd5ff11adc899561e434fbd3f23d))
+
+### Features
+
+- Add LangGraph node authorization guard
+  ([`d9d3d2a`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d9d3d2a81aa2df9c2305865a06db8a2a25e5aba8))
+
+- Add model-free protected LangGraph example
+  ([`0cdd638`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/0cdd638da2e32068890aaaf60f57a4d9e0ea22ec))
+
+### Testing
+
+- Allow node guard resolver overrides
+  ([`c0609f7`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/c0609f7ce93507ecc2f1a9eb6a6020ead774ffc3))
+
+- Cover LangGraph control flow and identity boundaries
+  ([`794e867`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/794e867b1b205658fa8214e06b159c370b9e3e3b))
+
+- Cover LangGraph node authorization
+  ([`0d211d8`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/0d211d8f0453b9db31756f8c8e917d71b0367db7))
+
+- Declare Command destination without duplicate static edge
+  ([`2a4e2fc`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2a4e2fc8924f77a99e3d33d2a06ddf89d289e953))
+
+- Execute LangGraph node guard example
+  ([`c9318b4`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/c9318b42c63a7cbdcc6615fd5e10a4c4f85c0854))
+
+- Smoke-test optional LangGraph node guard
+  ([`86e258e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/86e258eaf352dea1e6834f0e340cc1714f9220f9))
+
+- Smoke-test optional LangGraph node guard
+  ([`406417d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/406417dae19ecbe29eb2928e8a321cddb163d797))
+
+
 ## v0.7.2 (2026-10-24)
 
 ### Documentation
