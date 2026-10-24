@@ -142,13 +142,16 @@ jobs:
                   effect=Effect.ALLOW,
                   actions=frozenset({"read"}),
                   resources=frozenset({"read_probe"}),
+                  roles=frozenset({"smoke"}),
               )
           ])
 
           @server.tool()
           @protect_mcp_tool(
               policy=policy,
-              principal_resolver=lambda _ctx: Principal("smoke-user"),
+              principal_resolver=lambda _ctx: Principal(
+                  "smoke-user", roles=frozenset({"smoke"})
+              ),
               action="read",
           )
           def read_probe(ctx: Context) -> str:
