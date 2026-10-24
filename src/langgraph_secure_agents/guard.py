@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from functools import wraps
 from inspect import iscoroutinefunction
+from time import perf_counter
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
+from .audit import AuditEvent, AuditEventCallback
 from ._resolver_safety import call_resolver_without_mutation
 from .models import AccessRequest, Decision, JSONValue, Principal
 from .policy import PolicyEngine
@@ -39,6 +41,10 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, Awaitable[R]]: ...
 
 
@@ -53,6 +59,10 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, R]: ...
 
 
@@ -66,6 +76,10 @@ def protect_callable(
     resource_attributes_resolver: ResourceAttributesResolver | None = None,
     context_resolver: ContextResolver | None = None,
     audit_callback: AuditCallback | None = None,
+    audit_event_callback: AuditEventCallback | None = None,
+    policy_id: str | None = None,
+    policy_version: str | None = None,
+    policy_digest: str | None = None,
 ) -> Callable[P, Any]:
     """Return a callable that authorizes immediately before protected execution.
 
@@ -98,6 +112,8 @@ def protect_callable(
         raise TypeError("context_resolver must be callable")
     if audit_callback is not None and not callable(audit_callback):
         raise TypeError("audit_callback must be callable")
+    if audit_event_callback is not None and not callable(audit_event_callback):
+        raise TypeError("audit_event_callback must be callable")
     if not isinstance(action, str) or not action.strip() or action.strip() == "*":
         raise ValueError("action must be a non-empty concrete action")
 
@@ -106,6 +122,7 @@ def protect_callable(
         resource_name = getattr(function, "__name__", type(function).__name__)
 
     def authorize(*args: P.args, **kwargs: P.kwargs) -> None:
+        started = perf_counter()
         principal = principal_resolver()
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -136,6 +153,19 @@ def protect_callable(
             context=context_attributes,
         )
         decision = policy.evaluate(request)
+        duration_ms = (perf_counter() - started) * 1000.0
+
+        if audit_event_callback is not None:
+            event = AuditEvent.from_decision(
+                request,
+                decision,
+                source="python_callable",
+                duration_ms=duration_ms,
+                policy_id=policy_id,
+                policy_version=policy_version,
+                policy_digest=policy_digest,
+            )
+            audit_event_callback(event)
 
         if audit_callback is not None:
             audit_callback(request, decision)
