@@ -328,7 +328,7 @@ mypy src
 pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package and optional middleware extra.
+CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and enforces a 98% minimum line-coverage threshold. The packaging workflow also validates the wheel and source distribution and smoke-tests the installed package, optional middleware extra, and optional OpenTelemetry extra.
 
 ## Project documentation
 
