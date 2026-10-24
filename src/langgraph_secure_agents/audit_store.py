@@ -137,7 +137,11 @@ class SQLiteAuditSink:
     def records(self, *, after_sequence: int = 0, limit: int = 100) -> tuple[AuditRecord, ...]:
         """Read an ordered page of records without changing the stored chain."""
 
-        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+        if (
+            isinstance(after_sequence, bool)
+            or not isinstance(after_sequence, int)
+            or after_sequence < 0
+        ):
             raise ValueError("after_sequence must be a non-negative integer")
         if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
             raise ValueError("limit must be a positive integer")
