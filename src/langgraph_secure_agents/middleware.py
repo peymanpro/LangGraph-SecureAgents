@@ -211,7 +211,7 @@ def create_authorization_middleware(
     """
 
     if not isinstance(policy, (PolicyEngine, PolicyRegistry)):
-        raise TypeError("policy must be a PolicyEngine or PolicyRegistry instance")
+        raise TypeError("policy must be a PolicyEngine instance or a PolicyRegistry instance")
     if not callable(principal_resolver):
         raise TypeError("principal_resolver must be callable")
     if action_resolver is not None and not callable(action_resolver):
