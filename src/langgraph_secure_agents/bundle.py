@@ -23,6 +23,24 @@ _RULE_KEYS = {"rule_id", "effect", "actions", "resources", "principal_ids", "rol
 _CONDITION_KEYS = {"attribute", "operator", "value", "value_from"}
 
 
+class DiagnosticSeverity(StrEnum):
+    """Severity assigned to a non-fatal policy lint finding."""
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyDiagnostic:
+    """A stable, machine-readable policy lint result."""
+
+    code: str
+    severity: DiagnosticSeverity
+    message: str
+    rule_id: str | None = None
+
+
 def _required_text(value: object, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
@@ -228,6 +246,81 @@ class PolicyBundle:
             ensure_ascii=False,
             allow_nan=False,
         )
+
+    def lint(self) -> tuple[PolicyDiagnostic, ...]:
+        """Report risky or suspicious configurations without changing enforcement."""
+
+        findings: list[PolicyDiagnostic] = []
+        if not self.rules:
+            findings.append(
+                PolicyDiagnostic(
+                    code="BND001",
+                    severity=DiagnosticSeverity.WARNING,
+                    message="The bundle contains no rules; all requests will be denied by default.",
+                )
+            )
+
+        for rule in self.rules:
+            broad_selectors = rule.actions == frozenset({"*"}) or rule.resources == frozenset({"*"})
+            if rule.effect is Effect.ALLOW and broad_selectors:
+                findings.append(
+                    PolicyDiagnostic(
+                        code="SEC001",
+                        severity=DiagnosticSeverity.WARNING,
+                        rule_id=rule.rule_id,
+                        message=(
+                            "This allow rule uses a wildcard action or resource; review its scope "
+                            "carefully."
+                        ),
+                    )
+                )
+            if rule.effect is Effect.ALLOW and rule.principal_ids == frozenset({"*"}):
+                findings.append(
+                    PolicyDiagnostic(
+                        code="SEC002",
+                        severity=DiagnosticSeverity.WARNING,
+                        rule_id=rule.rule_id,
+                        message="This allow rule applies to every principal; prefer explicit subjects.",
+                    )
+                )
+            if (
+                rule.effect is Effect.REQUIRE_APPROVAL
+                and broad_selectors
+            ):
+                findings.append(
+                    PolicyDiagnostic(
+                        code="APR001",
+                        severity=DiagnosticSeverity.INFO,
+                        rule_id=rule.rule_id,
+                        message=(
+                            "This approval rule has a broad wildcard scope; verify that the "
+                            "approval workload is intentional."
+                        ),
+                    )
+                )
+
+            seen_conditions: set[str] = set()
+            for condition in rule.conditions:
+                serialized = json.dumps(
+                    _condition_to_dict(condition),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                )
+                if serialized in seen_conditions:
+                    findings.append(
+                        PolicyDiagnostic(
+                            code="POL001",
+                            severity=DiagnosticSeverity.WARNING,
+                            rule_id=rule.rule_id,
+                            message="This rule repeats an identical condition.",
+                        )
+                    )
+                    break
+                seen_conditions.add(serialized)
+
+        return tuple(findings)
 
     @classmethod
     def from_dict(cls, value: object) -> PolicyBundle:
