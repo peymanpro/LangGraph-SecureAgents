@@ -168,17 +168,61 @@ def test_conditional_deny_still_overrides_a_matching_allow() -> None:
 @pytest.mark.parametrize(
     ("condition", "context", "expected_allowed"),
     [
-        (AttributeCondition("context.risk_score", ConditionOperator.EQ, 3), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.NE, 4), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.IN, [1, 3, 5]), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.NOT_IN, [4, 5]), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.GT, 2), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.GTE, 3), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.LT, 4), {"risk_score": 3}, True),
-        (AttributeCondition("context.risk_score", ConditionOperator.LTE, 3), {"risk_score": 3}, True),
-        (AttributeCondition("context.labels", ConditionOperator.CONTAINS, "hr"), {"labels": ["finance", "hr"]}, True),
-        (AttributeCondition("context.present", ConditionOperator.EXISTS), {"present": None}, True),
-        (AttributeCondition("context.missing", ConditionOperator.NOT_EXISTS), {}, True),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.EQ, 3),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.NE, 4),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.IN, [1, 3, 5]),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.NOT_IN, [4, 5]),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.GT, 2),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.GTE, 3),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.LT, 4),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.risk_score", ConditionOperator.LTE, 3),
+            {"risk_score": 3},
+            True,
+        ),
+        (
+            AttributeCondition("context.labels", ConditionOperator.CONTAINS, "hr"),
+            {"labels": ["finance", "hr"]},
+            True,
+        ),
+        (
+            AttributeCondition("context.present", ConditionOperator.EXISTS),
+            {"present": None},
+            True,
+        ),
+        (
+            AttributeCondition("context.missing", ConditionOperator.NOT_EXISTS),
+            {},
+            True,
+        ),
     ],
 )
 def test_supported_attribute_operators(
