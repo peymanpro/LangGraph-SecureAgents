@@ -2,6 +2,7 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+from .audit import AuditEvent, AuditEventCallback, create_opentelemetry_callback
 from .bundle import (
     DiagnosticSeverity,
     PolicyBundle,
@@ -31,6 +32,9 @@ except PackageNotFoundError:
 
 __all__ = [
     "__version__",
+    "AuditEvent",
+    "AuditEventCallback",
+    "create_opentelemetry_callback",
     "AccessRequest",
     "AttributeCondition",
     "AttributeReference",
