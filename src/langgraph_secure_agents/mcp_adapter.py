@@ -15,7 +15,7 @@ from mcp.server.mcpserver import Context
 
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
-from .guard import AuthorizationDenied, AuditCallback
+from .guard import AuditCallback, AuthorizationDenied
 from .models import AccessRequest, JSONValue, Principal
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
@@ -111,16 +111,22 @@ def protect_mcp_tool(
             if _is_context_annotation(parameter.annotation)
         ]
         if len(context_parameters) != 1:
-            raise TypeError("MCP tool handler must declare exactly one parameter annotated as Context")
+            raise TypeError(
+                "MCP tool handler must declare exactly one parameter annotated as Context"
+            )
         context_parameter = context_parameters[0]
         if context_parameter.kind in {
             Parameter.POSITIONAL_ONLY,
             Parameter.VAR_POSITIONAL,
             Parameter.VAR_KEYWORD,
         }:
-            raise TypeError("Context must be a named positional-or-keyword or keyword-only parameter")
+            raise TypeError(
+                "Context must be a named positional-or-keyword or keyword-only parameter"
+            )
         if context_parameter.default is not Parameter.empty:
-            raise TypeError("Context parameter must be required so authorization cannot run without it")
+            raise TypeError(
+                "Context parameter must be required so authorization cannot run without it"
+            )
 
         effective_tool_name = normalized_tool_name or getattr(
             function, "__name__", type(function).__name__
