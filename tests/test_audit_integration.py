@@ -167,7 +167,10 @@ def test_middleware_emits_denial_event_without_invoking_handler() -> None:
 
     response = middleware.wrap_tool_call(
         _request(),
-        lambda request: (calls.append(True), ToolMessage(content="unsafe", tool_call_id="call-1"))[1],
+        lambda request: (
+            calls.append(True),
+            ToolMessage(content="unsafe", tool_call_id="call-1"),
+        )[1],
     )
 
     assert isinstance(response, ToolMessage)
@@ -204,7 +207,10 @@ def test_structured_audit_failure_fails_closed_for_callable_and_middleware() -> 
     with pytest.raises(RuntimeError, match="audit sink unavailable"):
         middleware.wrap_tool_call(
             _request(),
-            lambda request: (calls.append(True), ToolMessage(content="unsafe", tool_call_id="call-1"))[1],
+            lambda request: (
+                calls.append(True),
+                ToolMessage(content="unsafe", tool_call_id="call-1"),
+            )[1],
         )
 
     assert calls == []
@@ -248,7 +254,10 @@ def test_middleware_audits_policy_and_final_human_approval_outcomes(
 
     response = middleware.wrap_tool_call(
         _request(),
-        lambda request: (calls.append(True), ToolMessage(content="executed", tool_call_id="call-1"))[1],
+        lambda request: (
+            calls.append(True),
+            ToolMessage(content="executed", tool_call_id="call-1"),
+        )[1],
     )
 
     assert len(events) == 2
