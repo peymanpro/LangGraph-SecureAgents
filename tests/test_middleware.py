@@ -1002,3 +1002,58 @@ def test_middleware_fails_closed_when_context_resolver_returns_non_mapping() -> 
             middleware_request(),
             lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-context"),
         )
+
+def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
+    resolved_resources: list[str] = []
+
+    def resource_attributes(resource: str) -> dict[str, str]:
+        resolved_resources.append(resource)
+        if resource == "customer:101":
+            return {"tenant_id": "tenant-a"}
+        return {}
+
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="read-own-tenant-customer",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"customer:101"}),
+                roles=frozenset({"analyst"}),
+                conditions=(
+                    AttributeCondition(
+                        attribute="principal.attributes.tenant_id",
+                        operator=ConditionOperator.EQ,
+                        value=AttributeReference("resource.attributes.tenant_id"),
+                    ),
+                ),
+            )
+        ]
+    )
+    middleware = create_authorization_middleware(
+        policy,
+        principal_resolver=lambda _context: Principal(
+            "analyst-7",
+            roles=frozenset({"analyst"}),
+            attributes={"tenant_id": "tenant-a"},
+        ),
+        action_resolver=lambda _tool_name, _args: "read",
+        resource_resolver=lambda _tool_name, _args: " customer:101 ",
+        resource_attributes_resolver=resource_attributes,
+    )
+
+    response = middleware.wrap_tool_call(
+        middleware_request(
+            name="read_customer",
+            args={"customer_id": "101"},
+            tool_call_id="call-resource-normalization",
+            context={"user_id": "analyst-7"},
+        ),
+        lambda _request: ToolMessage(
+            content="Customer 101",
+            tool_call_id="call-resource-normalization",
+        ),
+    )
+
+    assert response.content == "Customer 101"
+    assert resolved_resources == ["customer:101"]

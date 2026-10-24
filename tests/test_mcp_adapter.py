@@ -217,3 +217,28 @@ def test_adapter_rejects_handlers_without_exactly_one_required_context() -> None
         @protector
         def optional_context(customer_id: str, ctx: Context = _MISSING_CONTEXT) -> str:
             return customer_id
+
+def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
+    tool_context = cast(Context, SimpleNamespace(request_id="normalized-resource"))
+    resolved_resources: list[str] = []
+
+    def resource_attributes(resource: str) -> Mapping[str, str]:
+        resolved_resources.append(resource)
+        return _resource_attributes(resource)
+
+    @protect_mcp_tool(
+        policy=_policy(),
+        principal_resolver=lambda _ctx: Principal(
+            "analyst-7",
+            roles=frozenset({"analyst"}),
+            attributes={"tenant_id": "tenant-a"},
+        ),
+        action="read",
+        resource_resolver=lambda args: f" customer:{args['customer_id']} ",
+        resource_attributes_resolver=resource_attributes,
+    )
+    def read_customer(customer_id: str, ctx: Context) -> str:
+        return _CUSTOMERS[customer_id]["summary"]
+
+    assert read_customer("customer-101", tool_context) == "Customer 101"
+    assert resolved_resources == ["customer:customer-101"]

@@ -406,3 +406,73 @@ def test_async_callable_executes_when_authorization_succeeds() -> None:
     )
 
     assert asyncio.run(guarded()) == "approved"
+
+def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
+    resolved_resources: list[str] = []
+
+    def resource_attributes(resource: str) -> dict[str, str]:
+        resolved_resources.append(resource)
+        if resource == "customer:101":
+            return {"tenant_id": "tenant-a"}
+        return {}
+
+    policy = PolicyEngine(
+        [
+            PolicyRule(
+                rule_id="read-own-tenant-customer",
+                effect=Effect.ALLOW,
+                actions=frozenset({"read"}),
+                resources=frozenset({"customer:101"}),
+                roles=frozenset({"analyst"}),
+                conditions=(
+                    AttributeCondition(
+                        attribute="principal.attributes.tenant_id",
+                        operator=ConditionOperator.EQ,
+                        value=AttributeReference("resource.attributes.tenant_id"),
+                    ),
+                ),
+            )
+        ]
+    )
+    guarded = protect_callable(
+        lambda customer_id: f"Customer {customer_id}",
+        policy=policy,
+        principal_resolver=lambda: Principal(
+            "analyst-7",
+            roles=frozenset({"analyst"}),
+            attributes={"tenant_id": "tenant-a"},
+        ),
+        action="read",
+        resource_resolver=lambda _customer_id: " customer:101 ",
+        resource_attributes_resolver=resource_attributes,
+    )
+
+    assert guarded("101") == "Customer 101"
+    assert resolved_resources == ["customer:101"]
+
+
+@pytest.mark.parametrize("invalid_resource", ["", "   ", "*", None, 7])
+def test_invalid_resolved_resource_fails_before_metadata_lookup(
+    invalid_resource: object,
+) -> None:
+    metadata_calls: list[str] = []
+    handler_calls: list[str] = []
+
+    def read_customer(customer_id: str) -> str:
+        handler_calls.append(customer_id)
+        return customer_id
+
+    guarded = protect_callable(
+        read_customer,
+        policy=PolicyEngine([allow_rule(resource="customer:101")]),
+        principal_resolver=lambda: Principal("analyst-7", roles=frozenset({"analyst"})),
+        action="read",
+        resource_resolver=lambda _customer_id: invalid_resource,
+        resource_attributes_resolver=lambda resource: metadata_calls.append(resource) or {},
+    )
+
+    with pytest.raises(ValueError):
+        guarded("101")
+
+    assert metadata_calls == []
+    assert handler_calls == []
