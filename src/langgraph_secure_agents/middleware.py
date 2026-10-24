@@ -185,15 +185,19 @@ def create_authorization_middleware(
     shown in the interrupt payload. The host application must authenticate the
     reviewer and authorize access to the resume operation; the payload alone is
     not proof that an authorized human approved the action. The fingerprint is
-    deterministic, not a one-time token. Configure approval_validator when the
-    host needs reviewer authentication/authorization and durable one-time
-    approval consumption. The callback receives the approval mapping, access
-    request, and fingerprint; it must authenticate/authorize the reviewer and
-    atomically consume the approval, returning literal True only for the first
-    valid use. Any other return value fails closed. If the callback raises, the
-    exception propagates and the tool handler is not invoked. Its result must
-    not be based on untrusted model output. Without this callback, the host
-    remains responsible for these controls externally.
+    deterministic, not a one-time token. For built-in durable consumption,
+    configure approval_store and approval_reviewer_resolver together. After an
+    authenticated reviewer approves the exact pending request, the host's trusted
+    approval endpoint should issue a short-lived token with store.issue(); the
+    resumed approval must contain that token and fingerprint. The reviewer
+    resolver must derive identity from trusted server-side state available during
+    resume, never from the approval mapping. SQLiteApprovalStore atomically checks
+    expiry, request fingerprint, reviewer identity, and one-time use before the
+    tool handler runs. The store does not authenticate reviewers or secure the
+    resume endpoint. Alternatively, approval_validator can implement an equivalent
+    transactional backend; it must return literal True only for a valid first
+    use. Configure one mechanism, not both. Without either mechanism, the legacy
+    fingerprint check alone is not sufficient for side-effecting operations.
 
     Action and resource resolvers receive detached argument copies. The resource
     attributes resolver receives the resolved resource identifier, and the context
