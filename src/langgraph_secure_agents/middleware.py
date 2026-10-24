@@ -13,8 +13,8 @@ from langchain.agents.middleware import AgentMiddleware, wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.types import interrupt
 
-from .audit import AuditEvent, AuditEventCallback
 from ._resolver_safety import call_resolver_without_mutation
+from .audit import AuditEvent, AuditEventCallback
 from .models import (
     AccessRequest,
     AttributeReference,
