@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import cast
 
 import pytest
 from mcp import Client
@@ -18,7 +18,6 @@ from langgraph_secure_agents import (
     PolicyEngine,
     PolicyRule,
     Principal,
-    SQLiteAuditSink,
 )
 from langgraph_secure_agents.audit import AuditEvent
 from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
@@ -214,5 +213,5 @@ def test_adapter_rejects_handlers_without_exactly_one_required_context() -> None
     with pytest.raises(TypeError, match="Context parameter must be required"):
 
         @protector
-        def optional_context(customer_id: str, ctx: Context | None = None) -> str:
+        def optional_context(customer_id: str, ctx: Context = cast(Context, None)) -> str:
             return customer_id
