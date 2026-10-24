@@ -14,7 +14,14 @@ from .models import (
     PolicyRule,
     Principal,
 )
-from .policy import PolicyEngine
+from .policy import ConditionTrace, PolicyEngine, PolicyExplanation, RuleTrace
+from .bundle import (
+    DiagnosticSeverity,
+    PolicyBundle,
+    PolicyDiagnostic,
+    SimulationCase,
+    SimulationReport,
+)
 
 try:
     __version__ = version("langgraph-secure-agents")
@@ -24,6 +31,14 @@ except PackageNotFoundError:
 
 __all__ = [
     "AccessRequest",
+    "SimulationReport",
+    "SimulationCase",
+    "RuleTrace",
+    "PolicyExplanation",
+    "PolicyDiagnostic",
+    "PolicyBundle",
+    "DiagnosticSeverity",
+    "ConditionTrace",
     "AttributeCondition",
     "AttributeReference",
     "AuthorizationDenied",
