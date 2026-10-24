@@ -372,6 +372,7 @@ from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
 
 server = MCPServer("Customer service")
 
+
 @server.tool()
 @protect_mcp_tool(
     policy=PolicyEngine(...),
