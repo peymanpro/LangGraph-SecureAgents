@@ -63,6 +63,8 @@ def _freeze_attribute_value(value: object, *, depth: int = 0) -> JSONValue:
             normalized_key = key.strip()
             if "." in normalized_key:
                 raise ValueError("attribute keys cannot contain dots; use nested mappings")
+            if normalized_key in frozen:
+                raise ValueError("attribute mapping keys collide after normalization")
             frozen[normalized_key] = _freeze_attribute_value(item, depth=depth + 1)
         return MappingProxyType(frozen)
     if isinstance(value, (list, tuple)):
@@ -84,6 +86,8 @@ def _freeze_attributes(
         normalized_key = key.strip()
         if "." in normalized_key:
             raise ValueError(f"{field_name} keys cannot contain dots; use nested mappings")
+        if normalized_key in frozen:
+            raise ValueError(f"{field_name} keys collide after normalization")
         frozen[normalized_key] = _freeze_attribute_value(value)
     return MappingProxyType(frozen)
 
