@@ -36,7 +36,12 @@ def _normalized_set(
 
 
 JSONScalar: TypeAlias = str | int | float | bool | None
-JSONValue: TypeAlias = JSONScalar | tuple["JSONValue", ...] | Mapping[str, "JSONValue"]
+JSONValue: TypeAlias = (
+    JSONScalar
+    | list["JSONValue"]
+    | tuple["JSONValue", ...]
+    | Mapping[str, "JSONValue"]
+)
 
 
 def _freeze_attribute_value(value: object, *, depth: int = 0) -> JSONValue:
@@ -202,6 +207,8 @@ class AttributeCondition:
         ):
             if not isinstance(frozen_value, tuple):
                 raise ValueError(f"{operator.value} conditions require a list or tuple value")
+            if not frozen_value:
+                raise ValueError(f"{operator.value} conditions require a non-empty collection")
         object.__setattr__(self, "value", frozen_value)
 
 
