@@ -117,11 +117,14 @@ def test_middleware_consumes_approval_grant_once_and_rejects_replay(
     assert replay.status == "error"
     assert replay.content == "Approval response invalid; tool was not executed."
     assert calls == ["executed"]
-    assert store.consume(
-        str(retained["token"]),
-        str(retained["fingerprint"]),
-        "reviewer-1",
-    ) is False
+    assert (
+        store.consume(
+            str(retained["token"]),
+            str(retained["fingerprint"]),
+            "reviewer-1",
+        )
+        is False
+    )
     store.close()
 
 
