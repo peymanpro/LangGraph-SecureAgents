@@ -365,9 +365,7 @@ def test_lint_flags_allow_rule_with_no_principal_restrictions() -> None:
 
     findings = bundle.lint()
 
-    assert [(item.code, item.rule_id) for item in findings] == [
-        ("SEC002", "read-every-report")
-    ]
+    assert [(item.code, item.rule_id) for item in findings] == [("SEC002", "read-every-report")]
 
 
 def test_lint_respects_role_restriction_with_wildcard_principal_id() -> None:
