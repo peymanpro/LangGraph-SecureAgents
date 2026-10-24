@@ -202,4 +202,3 @@ def test_integrity_verification_rejects_malformed_or_mismatched_payloads(
     tampered = SQLiteAuditSink(database)
     assert tampered.verify_integrity() is False
     tampered.close()
-
