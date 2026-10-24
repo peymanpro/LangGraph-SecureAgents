@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import pytest
 from langchain_core.runnables import RunnableConfig
@@ -436,7 +436,7 @@ def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
         state: GraphState,
         config: RunnableConfig,
         runtime: Runtime[AuthContext],
-    ) -> Command:
+    ) -> Command[Literal["finish"]]:
         assert config.get("tags") == ["node-guard-test"]
         assert runtime.context["user_id"] == "alice"
         return Command(goto="finish", update={"completed": True})
@@ -456,7 +456,6 @@ def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
     builder.add_node("refund", protected)
     builder.add_node("finish", finish_node)
     builder.add_edge(START, "refund")
-    builder.add_edge("refund", "finish")
     builder.add_edge("finish", END)
     graph = builder.compile()
 
