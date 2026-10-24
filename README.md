@@ -128,9 +128,11 @@ report_policy = PolicyEngine(
     ]
 )
 
+
 def current_principal() -> Principal:
     # Replace with trusted, request-scoped identity from your application.
     return Principal("user-123", roles=frozenset({"analyst"}))
+
 
 protected_lookup = protect_callable(
     lookup_report,  # Your existing function
