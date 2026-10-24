@@ -400,7 +400,7 @@ def test_file_round_trip_supports_json_and_yaml(tmp_path: Path) -> None:
     assert PolicyBundle.from_file(yaml_path) == bundle
 
 
-def test_file_api_rejects_unsupported_extensions(tmp_path: pytest.TempPathFactory) -> None:
+def test_file_api_rejects_unsupported_extensions(tmp_path: Path) -> None:
     bundle = sample_bundle()
     invalid_path = tmp_path / "policy.txt"
 
