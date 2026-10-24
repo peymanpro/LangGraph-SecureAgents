@@ -36,7 +36,9 @@ def _normalized_set(
 
 
 JSONScalar: TypeAlias = str | int | float | bool | None
-JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | tuple["JSONValue", ...] | Mapping[str, "JSONValue"]
+JSONSequence: TypeAlias = list["JSONValue"] | tuple["JSONValue", ...]
+JSONMapping: TypeAlias = Mapping[str, "JSONValue"]
+JSONValue: TypeAlias = JSONScalar | JSONSequence | JSONMapping
 
 
 def _freeze_attribute_value(value: object, *, depth: int = 0) -> JSONValue:
