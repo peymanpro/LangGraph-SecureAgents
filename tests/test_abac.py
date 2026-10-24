@@ -278,3 +278,28 @@ def test_conditions_must_be_typed_attribute_conditions() -> None:
             roles=frozenset({"analyst"}),
             conditions=("context.risk_score > 3",),  # type: ignore[arg-type]
         )
+
+
+
+@pytest.mark.parametrize(
+    ("operator", "value"),
+    [
+        (ConditionOperator.NE, "secret"),
+        (ConditionOperator.NOT_IN, ["secret", "top-secret"]),
+    ],
+)
+def test_negative_comparisons_fail_closed_for_incompatible_types(
+    operator: ConditionOperator,
+    value: object,
+) -> None:
+    condition = AttributeCondition("context.clearance", operator, value)  # type: ignore[arg-type]
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(
+        request(context={"clearance": 7})
+    )
+
+    assert not decision.allowed
+
+
+def test_membership_condition_rejects_empty_literal_collections() -> None:
+    with pytest.raises(ValueError, match="non-empty collection"):
+        AttributeCondition("context.roles", ConditionOperator.NOT_IN, [])
