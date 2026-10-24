@@ -344,3 +344,157 @@ def test_negative_comparisons_fail_closed_for_incompatible_types(
 def test_membership_condition_rejects_empty_literal_collections() -> None:
     with pytest.raises(ValueError, match="non-empty collection"):
         AttributeCondition("context.roles", ConditionOperator.NOT_IN, [])
+
+
+
+def test_attribute_freezing_validates_nested_mapping_edges_and_finite_floats() -> None:
+    principal = Principal("alice", attributes={"risk": 1.25, "label": "trusted"})
+    assert principal.attributes["risk"] == 1.25
+
+    with pytest.raises(ValueError, match="attribute mapping keys must be non-empty strings"):
+        Principal("alice", attributes={"profile": {1: "invalid"}})  # type: ignore[dict-item]
+
+    with pytest.raises(ValueError, match="attribute keys cannot contain dots"):
+        Principal("alice", attributes={"profile": {"team.name": "hr"}})
+
+    with pytest.raises(ValueError, match="attribute mapping keys collide"):
+        Principal("alice", attributes={"profile": {"team": "hr", " team ": "finance"}})
+
+    with pytest.raises(ValueError, match="must be a mapping"):
+        Principal("alice", attributes="not-a-mapping")  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="keys must be non-empty strings"):
+        Principal("alice", attributes={1: "invalid"})  # type: ignore[dict-item]
+
+    with pytest.raises(ValueError, match="keys cannot contain dots"):
+        Principal("alice", attributes={"team.name": "hr"})
+
+    with pytest.raises(ValueError, match="keys collide after normalization"):
+        Principal("alice", attributes={"tenant": "a", " tenant ": "b"})
+
+
+def test_attribute_freezing_rejects_excessive_nesting() -> None:
+    nested: object = "value"
+    for _ in range(34):
+        nested = {"child": nested}
+
+    with pytest.raises(ValueError, match="must not exceed 32 nested levels"):
+        Principal("alice", attributes={"profile": nested})  # type: ignore[dict-item]
+
+
+def test_attribute_path_validation_rejects_builtin_field_traversal() -> None:
+    with pytest.raises(ValueError, match="cannot traverse a built-in principal field"):
+        AttributeReference("principal.principal_id.extra")
+
+    with pytest.raises(ValueError, match="cannot traverse the resource id"):
+        AttributeReference("resource.id.tenant_id")
+
+
+def test_attribute_condition_rejects_invalid_operator_and_unexpected_values() -> None:
+    with pytest.raises(ValueError, match="supported ConditionOperator"):
+        AttributeCondition("context.value", "execute", "x")  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="do not accept a value"):
+        AttributeCondition("context.value", ConditionOperator.EXISTS, True)
+
+    with pytest.raises(ValueError, match="require a list or tuple"):
+        AttributeCondition("context.value", ConditionOperator.IN, "not-a-list")
+
+
+def test_policy_rule_rejects_invalid_condition_collections() -> None:
+    base = {
+        "rule_id": "invalid-conditions",
+        "effect": Effect.ALLOW,
+        "actions": frozenset({"read"}),
+        "resources": frozenset({"reports"}),
+        "roles": frozenset({"analyst"}),
+    }
+
+    with pytest.raises(ValueError, match="collection of AttributeCondition"):
+        PolicyRule(**base, conditions="not-a-condition-list")  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="collection of AttributeCondition"):
+        PolicyRule(**base, conditions=42)  # type: ignore[arg-type]
+
+
+def test_attribute_reference_to_missing_path_fails_closed() -> None:
+    condition = AttributeCondition(
+        "context.value",
+        ConditionOperator.EQ,
+        AttributeReference("context.not_present"),
+    )
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(request(context={"value": "same"}))
+
+    assert not decision.allowed
+    assert decision.reason is DecisionReason.DEFAULT_DENY
+
+
+def test_numeric_comparison_rejects_non_numeric_actual_values() -> None:
+    condition = AttributeCondition("context.clearance", ConditionOperator.GT, 3)
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(request(context={"clearance": "high"}))
+
+    assert not decision.allowed
+
+
+def test_abac_equality_supports_nested_mappings_and_sequences() -> None:
+    mapping_match = AttributeCondition(
+        "context.profile",
+        ConditionOperator.EQ,
+        {"department": "hr", "level": 2},
+    )
+    mapping_mismatch = AttributeCondition(
+        "context.profile",
+        ConditionOperator.EQ,
+        {"department": "hr", "region": "eu"},
+    )
+    sequence_match = AttributeCondition(
+        "context.labels",
+        ConditionOperator.EQ,
+        ["hr", "finance"],
+    )
+
+    context = {"profile": {"department": "hr", "level": 2}, "labels": ["hr", "finance"]}
+    assert PolicyEngine([allow_rule(mapping_match)]).evaluate(request(context=context)).allowed
+    assert not PolicyEngine([allow_rule(mapping_mismatch)]).evaluate(request(context=context)).allowed
+    assert PolicyEngine([allow_rule(sequence_match)]).evaluate(request(context=context)).allowed
+
+
+def test_abac_comparisons_fail_closed_for_corrupted_non_finite_request_data() -> None:
+    condition = AttributeCondition("context.risk", ConditionOperator.GT, 0)
+    access_request = request()
+    # AccessRequest normally rejects non-finite values at construction. Simulate
+    # corrupted internal state to verify the comparison still fails closed.
+    object.__setattr__(access_request, "context", {"risk": float("nan")})
+
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(access_request)
+
+    assert not decision.allowed
+
+
+def test_unknown_internal_condition_operator_fails_closed() -> None:
+    condition = AttributeCondition("context.risk", ConditionOperator.GT, 0)
+    object.__setattr__(condition, "operator", "unsupported")
+
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(request(context={"risk": 2}))
+
+    assert not decision.allowed
+
+
+def test_attribute_membership_helper_rejects_non_collection() -> None:
+    assert not PolicyEngine._member_of("a", "abc")
+
+
+def test_contains_operator_handles_strings_and_mapping_keys() -> None:
+    text_condition = AttributeCondition("context.label", ConditionOperator.CONTAINS, "read")
+    key_condition = AttributeCondition("context.permissions", ConditionOperator.CONTAINS, "read")
+    bad_type_condition = AttributeCondition("context.label", ConditionOperator.CONTAINS, 3)
+
+    assert PolicyEngine([allow_rule(text_condition)]).evaluate(
+        request(context={"label": "read-only"})
+    ).allowed
+    assert PolicyEngine([allow_rule(key_condition)]).evaluate(
+        request(context={"permissions": {"read": True}})
+    ).allowed
+    assert not PolicyEngine([allow_rule(bad_type_condition)]).evaluate(
+        request(context={"label": "read-only"})
+    ).allowed
