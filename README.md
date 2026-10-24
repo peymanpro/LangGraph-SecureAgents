@@ -8,9 +8,9 @@
 [![Latest GitHub release](https://img.shields.io/github/v/release/peymanpro/LangGraph-SecureAgents)](https://github.com/peymanpro/LangGraph-SecureAgents/releases)
 [![MIT License](https://img.shields.io/github/license/peymanpro/LangGraph-SecureAgents)](LICENSE)
 
-LangGraph-SecureAgents evaluates authorization in trusted application code and enforces decisions immediately before protected Python callables, agent tools, and—when the optional MCP adapter is installed—explicitly decorated MCP server tool handlers execute. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
+LangGraph-SecureAgents evaluates authorization in trusted application code and enforces decisions immediately before protected Python callables, explicitly wrapped LangGraph nodes, agent tools, and—when the optional MCP adapter is installed—decorated MCP server tool handlers execute. LangGraph can orchestrate the agent; **an LLM cannot grant itself permissions**.
 
-**Security model:** Authorization is enforced at the callable and agent-tool boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, decorating every sensitive MCP tool handler, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
+**Security model:** Authorization is enforced only at the callable, explicitly wrapped LangGraph-node, agent-tool, and MCP-handler boundaries you configure. The integrating application remains responsible for authenticating callers, constructing principals from trusted context, mapping each request to the actual resource being accessed, guarding every sensitive execution path, and retaining downstream access controls. See the [threat model](docs/threat-model.md) for the trust boundaries and deployment guidance.
 
 ## What it provides
 
@@ -41,7 +41,7 @@ Trusted application identity
    allow / deny / approval
            |
            v
- Python callable or agent tool
+ Python callable, LangGraph node, or agent tool
            |
    execute only if authorized
 ```
