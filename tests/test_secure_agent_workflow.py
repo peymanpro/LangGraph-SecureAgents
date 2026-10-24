@@ -34,3 +34,8 @@ def test_end_to_end_demo_denies_cross_tenant_and_blocks_approval_replay(
     assert report.audit_integrity_valid is True
     assert (tmp_path / "approvals.sqlite3").exists()
     assert (tmp_path / "authorization-audit.sqlite3").exists()
+
+    # Reusing the persistent data directory should preserve the chain without
+    # mixing old events into the current run's report.
+    repeated_report = run_demo(tmp_path)
+    assert repeated_report == report
