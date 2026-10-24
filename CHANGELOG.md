@@ -4,6 +4,198 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.5.0 (2026-10-24)
+
+### Bug Fixes
+
+- Annotate all guard overloads for policy registry
+  ([`596d2d8`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/596d2d87dcc07338970e92675e1cf3d16565bd9c))
+
+- Audit the exact active policy snapshot
+  ([`e079c02`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/e079c021140c4c43626f0897a1692326e4acc255))
+
+- Audit the exact active policy snapshot
+  ([`6066145`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6066145e71eb8b10e7f4ad2930fc898d253265e9))
+
+- Narrow policy registry type in middleware
+  ([`b70561f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/b70561f4f0e6a0fcf27bbb47cf51d6bce241b814))
+
+- Narrow policy registry type when capturing guard snapshot
+  ([`7d29aa5`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/7d29aa51faadf3f3768d07b6050b0275d8b0e8e0))
+
+- Normalize audit hash serialization for lint
+  ([`eb93b86`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/eb93b864db91c40ae60715adb16a9ed5a81af37b))
+
+- Preserve the guard policy validation message
+  ([`fa83c13`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/fa83c131a8752ccff76e15d20abf8f9eef698603))
+
+- Preserve the middleware policy validation message
+  ([`8dfe06b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/8dfe06be5a6aa7013babb80139b32317b226da55))
+
+- Use unambiguous hash-chain separators
+  ([`662540a`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/662540a9b98f1c365419709e89010cd1badbc203))
+
+### Code Style
+
+- Format ABAC test condition
+  ([`6d04359`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6d043597eb70d34b1689217b6f9d98aed90219b0))
+
+- Format policy registry test update
+  ([`d8a349b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d8a349b91c56aabe9efd0980fcc30d4273b876b2))
+
+- Format replay assertion
+  ([`5210af4`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5210af4f4bc6ac3fddb8bd81fedfbfcbe974035e))
+
+- Match formatter spacing for added tests
+  ([`3a7307e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3a7307e2290f94fa76e59f0d2a06c16594065d3d))
+
+- Match formatter spacing for added tests
+  ([`7db15f2`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/7db15f2e95420a9a9e6b33e354a5f4a6b70022f4))
+
+- Match formatter spacing for added tests
+  ([`a623ecc`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/a623eccdddd17a2c9b0d12998d366071aec44d23))
+
+- Match formatter spacing for added tests
+  ([`ad06f21`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ad06f21dc368e86b89e013785d15f88d841c3837))
+
+- Normalize approval store end-of-file
+  ([`68a7fa6`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/68a7fa60b44644557c8cf64c4a02cd968996ea03))
+
+- Normalize approval-store test SQL
+  ([`bd5e950`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/bd5e9504a8f54ef4c77be66871e57cc788f5bb07))
+
+- Normalize policy registry conditions
+  ([`83a734b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/83a734b67f5c3aadc718bfa46641a242f4924596))
+
+- Normalize rollback compare-and-swap
+  ([`a256530`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/a2565305625715a6267c0b94368e0b6620981359))
+
+- Normalize test file endings
+  ([`6892eda`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6892eda631f684a7c7c3c724e8cf78387d216ca5))
+
+- Normalize test file endings
+  ([`5b4495d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5b4495d3c28ade6441642fcfa391e5dfc7f379f3))
+
+- Normalize test file endings
+  ([`162ad7c`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/162ad7c66509d2d14235b40d9142c680d10dcb1e))
+
+- Normalize test file endings
+  ([`3de23a5`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3de23a586fd5df72f8450630b849d00397fc31b7))
+
+- Simplify audit hash-chain query
+  ([`0f84a12`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/0f84a12c25b04c76aa4d389377fff15ddc0ab9df))
+
+- Sort standard library imports
+  ([`cbce22f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/cbce22f6552aab382e83aef993eb8685d82d0994))
+
+- Sort standard library imports
+  ([`e28b7c8`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/e28b7c8610de34bf29309eb7a93d82d578b2d0a4))
+
+- Wrap audit pagination validation
+  ([`62d63aa`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/62d63aa1479aa9ac2f498f3b384463ea4fe6a2ac))
+
+- Wrap middleware request fixture
+  ([`9fdc51c`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/9fdc51c3e9aeb831e6d5a7961942b94412e9a9ac))
+
+- Wrap middleware validation and metadata
+  ([`5a755be`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5a755bea9d1fdee0a4dd691a66aa4e73549a7525))
+
+- Wrap policy snapshot audit metadata
+  ([`3abcbe2`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3abcbe25fb1ef8290c5ea37373a186b686460326))
+
+### Documentation
+
+- Add secure approval store integration guide
+  ([`386fd82`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/386fd82733f5bc6391242c0554b2ffb5b881dfd0))
+
+- Clarify approval fingerprint retention boundary
+  ([`4289de4`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/4289de48734d27951df7e84c436350bcfe41b1c5))
+
+- Clarify built-in approval store security boundary
+  ([`29f9349`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/29f93497d6262974492d6e0760af919fb31cc027))
+
+- Document operational security primitives
+  ([`281c31b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/281c31b3004bf3b8a95f8efdc7827b312ee73773))
+
+- Document SQLite audit durability and chain limits
+  ([`5fad683`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5fad68324494891fc27c34f76b4c9a5ce1abd8ea))
+
+- Explain atomic policy publication and rollback
+  ([`f81912f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f81912feaa55ca63ffc6b97c0f8e6791d05e2f7d))
+
+- Explain trusted reviewer binding in middleware
+  ([`2f189c6`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2f189c6da2bf8abd326c5a8f7eb9b023d393c5d2))
+
+- Update threat model for atomic policy, approval, and audit stores
+  ([`54b74be`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/54b74be749677c40fc42f4dbf1dd76e1a60a1757))
+
+### Features
+
+- Add atomic policy registry and rollback
+  ([`3a13c53`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3a13c5381d9a95d89858e10b7a8f40d5c91c0aa2))
+
+- Add durable single-use approval store
+  ([`c1c48c5`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/c1c48c5f5266042304f19c8aab147864d12e73b2))
+
+- Add durable tamper-evident SQLite audit sink
+  ([`6180970`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/61809702c2d5ad2a118ee919328b0ed36b8ccfe3))
+
+- Export approval, policy registry, and audit persistence APIs
+  ([`7adea59`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/7adea598c790bb2c99549d938112168ad0b0fb3c))
+
+- Integrate approval store and live policy snapshots into middleware
+  ([`cecc360`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/cecc360598c340b5379b0bda1382a353f8c01f52))
+
+- Support atomic policy registry in callable guards
+  ([`f18d260`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f18d260d42a585af2bb138146f669eecdf073758))
+
+### Refactoring
+
+- Simplify policy registry middleware tests
+  ([`2521578`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2521578acc8bc52a606d96674a3df6ad219092c8))
+
+### Testing
+
+- Add authorization invariant and adversarial property checks
+  ([`5283db2`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5283db2a1a204ac93152779bf013f699a146cb50))
+
+- Cover approval expiry, replay, and concurrent consumption
+  ([`50c5b67`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/50c5b67886394643694499e9fc1a016df8ac146a))
+
+- Cover atomic policy reload, rollback, and guard integration
+  ([`8ccc35d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/8ccc35d18cc544017b014da7f0f3d96f595d27a6))
+
+- Cover audit event validation and callback misuse
+  ([`f34ca20`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f34ca20e6cc6a270a8af061f2058a3e9346d0c44))
+
+- Cover durable audit persistence and tamper detection
+  ([`77f632b`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/77f632b5da33a94b5330bd80c5963fbd94334c17))
+
+- Cover invalid policy registry inputs and stale rollback
+  ([`f1f4d31`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f1f4d319e867319569f664852da2ddbe44f43021))
+
+- Cover malformed and mismatched audit chain payloads
+  ([`de994e7`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/de994e72bd1754901e6321ef2a35acd268ca152e))
+
+- Cover middleware approval grants and policy snapshots
+  ([`bb521cf`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/bb521cff9c9508128054ae0c3bd3a1e2d592055e))
+
+- Cover optional middleware resolver validation
+  ([`1c5d529`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/1c5d5291eab3ac2ed641819ff9936a5122356cdf))
+
+- Cover structured audit and correlation resolver validation
+  ([`bcbdab5`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/bcbdab538e770700cc983df2d3aabf6ccd860ec9))
+
+- Verify approval transactions roll back on database failures
+  ([`77c7573`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/77c7573f3eb8f93081f97c89364b8885602507f9))
+
+- Verify concurrent audit appends preserve hash-chain integrity
+  ([`7a0480e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/7a0480e2e30609301843525fa329934a9f593091))
+
+- Verify concurrent policy updates use compare-and-swap
+  ([`5dee8b4`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5dee8b450d92a327f89bd4ff7c2143e4e866a500))
+
+
 ## v0.4.0 (2026-10-24)
 
 ### Features
