@@ -255,6 +255,8 @@ def run_demo(data_dir: str | Path) -> DemoReport:
         data_path / "approvals.sqlite3",
         data_path / "authorization-audit.sqlite3",
     )
+    # Keep the report scoped to this run even when the operator retains old records.
+    starting_audit_sequence = environment.audit_sink.count
 
     analyst = DemoContext(principal_id="analyst-7", roles=("analyst",), tenant_id="tenant-a")
     finance = DemoContext(principal_id="finance-4", roles=("finance",), tenant_id="tenant-a")
@@ -345,7 +347,7 @@ def run_demo(data_dir: str | Path) -> DemoReport:
         finally:
             _AUTHENTICATED_REVIEWER.reset(replay_reviewer_token)
 
-        records = environment.audit_sink.records(limit=100)
+        records = environment.audit_sink.records(after_sequence=starting_audit_sequence, limit=100)
         audit_reasons = tuple(str(record.payload["decision_reason"]) for record in records)
         return DemoReport(
             own_tenant_result=str(own_tenant["result"]),
