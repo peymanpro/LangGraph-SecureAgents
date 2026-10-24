@@ -64,3 +64,13 @@ python_version = "3.11"
 strict = true
 mypy_path = "src"
 packages = ["langgraph_secure_agents"]
+
+[tool.semantic_release]
+branch = "main"
+tag_format = "v{version}"
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/langgraph_secure_agents/__init__.py:__version__"]
+changelog_file = "CHANGELOG.md"
+commit_message = "chore(release): {version} [skip ci]"
+allow_zero_version = true
+major_on_zero = false

@@ -1,113 +1,168 @@
-name: Release
+name: Automatic Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: automatic-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
-    name: Build and validate release artifacts
+  quality:
+    name: Release quality gate (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     permissions:
       contents: read
-    outputs:
-      version: ${{ steps.metadata.outputs.version }}
-      prerelease: ${{ steps.metadata.outputs.prerelease }}
-
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install development dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Type check
+        run: mypy src
+      - name: Test
+        run: pytest --cov=langgraph_secure_agents --cov-report=term-missing --cov-fail-under=98
 
+  package-smoke:
+    name: Build and smoke-test distributions
+    runs-on: ubuntu-latest
+    needs: quality
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-
-      - name: Install build tools
-        run: python -m pip install --upgrade pip build twine packaging
-
-      - name: Verify tag matches package version
-        id: metadata
-        shell: bash
+      - name: Build and validate distributions
         run: |
-          python - <<'PY'
-          import os
-          import tomllib
-          from packaging.version import Version
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Install wheel in a clean environment and smoke-test core API
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-smoke
+          /tmp/langgraph-secure-agents-smoke/bin/python -m pip install --no-deps dist/*.whl
+          cd /tmp
+          /tmp/langgraph-secure-agents-smoke/bin/python - <<'PY'
+          from langgraph_secure_agents import AccessRequest, Effect, PolicyEngine, PolicyRule, Principal
 
-          with open("pyproject.toml", "rb") as file:
-              version = tomllib.load(file)["project"]["version"]
+          policy = PolicyEngine([
+              PolicyRule(
+                  rule_id="release-smoke-test",
+                  effect=Effect.ALLOW,
+                  actions=frozenset({"read"}),
+                  resources=frozenset({"reports"}),
+                  roles=frozenset({"analyst"}),
+              )
+          ])
+          result = policy.evaluate(
+              AccessRequest(Principal("release-user", frozenset({"analyst"})), "read", "reports")
+          )
+          assert result.allowed, result
+          print("Installed wheel smoke test passed.")
+          PY
+      - name: Smoke-test optional LangChain middleware extra
+        run: |
+          python -m venv /tmp/langgraph-secure-agents-extra
+          /tmp/langgraph-secure-agents-extra/bin/python -m pip install ".[langchain-agents]"
+          /tmp/langgraph-secure-agents-extra/bin/python - <<'PY'
+          from langgraph_secure_agents import PolicyEngine, Principal
+          from langgraph_secure_agents.middleware import create_authorization_middleware
 
-          tag = os.environ["GITHUB_REF_NAME"]
-          expected_tag = f"v{version}"
-          if tag != expected_tag:
-              raise SystemExit(f"Tag {tag!r} does not match package version tag {expected_tag!r}")
-
-          parsed_version = Version(version)
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"version={version}\\n")
-              output.write(f"prerelease={str(parsed_version.is_prerelease or parsed_version.is_devrelease).lower()}\\n")
+          middleware = create_authorization_middleware(PolicyEngine(), lambda context: Principal("smoke-user"))
+          assert callable(middleware.wrap_tool_call)
+          print("Optional middleware extra smoke test passed.")
           PY
 
-      - name: Build wheel and source distribution
-        run: python -m build
-
-      - name: Validate distribution metadata
-        run: python -m twine check dist/*
-
-      - name: Upload validated release artifacts
+  release:
+    name: Version and prepare release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [quality, package-smoke]
+    permissions:
+      contents: write
+    outputs:
+      released: ${{ steps.semantic.outputs.released }}
+      tag: ${{ steps.semantic.outputs.tag }}
+      version: ${{ steps.semantic.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Create semantic version and GitHub Release
+        id: semantic
+        uses: python-semantic-release/python-semantic-release@b700dbeb1f431a0fcc30a79f3f0869407fe07278 # v10.7.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_committer_name: "github-actions"
+          git_committer_email: "actions@users.noreply.github.com"
+      - name: Set up Python for distribution build
+        if: steps.semantic.outputs.released == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Build and validate distributions
+        if: steps.semantic.outputs.released == 'true'
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Upload validated distributions
+        if: steps.semantic.outputs.released == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-dist
           path: dist/
           if-no-files-found: error
           retention-days: 1
-
-  publish-github-release:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download validated release artifacts
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-dist
-          path: dist/
-
-      - name: Publish GitHub Release
+      - name: Attach distributions to GitHub Release
+        if: steps.semantic.outputs.released == 'true'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: LangGraph-SecureAgents v${{ needs.build.outputs.version }}
-          generate_release_notes: true
-          prerelease: ${{ needs.build.outputs.prerelease }}
+          tag_name: ${{ steps.semantic.outputs.tag }}
           fail_on_unmatched_files: true
           files: dist/*
 
   publish-pypi:
-    name: Publish package to PyPI (Trusted Publishing)
+    name: Publish to PyPI using Trusted Publishing
     runs-on: ubuntu-latest
-    needs: build
+    needs: release
+    if: needs.release.outputs.released == 'true'
     environment:
       name: pypi
       url: https://pypi.org/project/langgraph-secure-agents/
     permissions:
       id-token: write
-
     steps:
-      - name: Download validated release artifacts
+      - name: Download validated distributions
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-dist
           path: dist/
-
-      - name: Publish package distributions to PyPI
+      - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: dist/
+          print-hash: true
