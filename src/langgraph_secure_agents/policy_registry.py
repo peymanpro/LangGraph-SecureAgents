@@ -149,13 +149,9 @@ class PolicyRegistry:
 
         with self._lock:
             current = self._current
-            if (
-                expected_generation is not None
-                and expected_generation != current.generation
-            ):
+            if expected_generation is not None and expected_generation != current.generation:
                 raise PolicyUpdateConflict(
-                    f"expected policy generation {expected_generation}, "
-                    f"found {current.generation}"
+                    f"expected policy generation {expected_generation}, found {current.generation}"
                 )
             if not self._history:
                 raise RuntimeError("no previous policy snapshot is available for rollback")
