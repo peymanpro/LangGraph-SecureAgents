@@ -149,3 +149,27 @@ def test_append_rejects_non_audit_event() -> None:
     with pytest.raises(TypeError, match="AuditEvent"):
         sink.append("not-an-event")  # type: ignore[arg-type]
     sink.close()
+
+
+def test_concurrent_appends_preserve_a_contiguous_valid_hash_chain() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    sink = SQLiteAuditSink(":memory:")
+
+    def append(index: int) -> None:
+        sink.append(sample_event(f"event-{index}"))
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(append, range(40)))
+
+    records = sink.records(limit=100)
+    assert sink.count == 40
+    assert len(records) == 40
+    assert [record.sequence for record in records] == list(range(1, 41))
+    assert len({record.event_id for record in records}) == 40
+    assert all(
+        record.previous_hash == ("0" * 64 if index == 0 else records[index - 1].entry_hash)
+        for index, record in enumerate(records)
+    )
+    assert sink.verify_integrity()
+    sink.close()
