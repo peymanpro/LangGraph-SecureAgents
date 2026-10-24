@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from functools import wraps
 from inspect import Parameter, isasyncgenfunction, iscoroutinefunction, signature
 from time import perf_counter
-from typing import Any, cast
+from typing import Any, cast, get_type_hints
 
 from mcp.server.mcpserver import Context
 
@@ -27,14 +27,9 @@ ContextResolver = Callable[[Context], Mapping[str, JSONValue]]
 
 
 def _is_context_annotation(annotation: Any) -> bool:
-    """Recognize the SDK Context type, including postponed string annotations."""
+    """Recognize only the actual MCP SDK Context class."""
 
-    if annotation is Context:
-        return True
-    if isinstance(annotation, str):
-        normalized = annotation.strip().strip("'\\\"")
-        return normalized == "Context" or normalized.endswith(".Context")
-    return False
+    return annotation is Context
 
 
 def protect_mcp_tool(
@@ -105,10 +100,18 @@ def protect_mcp_tool(
             raise TypeError("async generator MCP tools are not supported")
 
         function_signature = signature(function)
+        try:
+            resolved_annotations = get_type_hints(function, include_extras=True)
+        except Exception as exc:
+            raise TypeError(
+                "MCP tool handler annotations must be resolvable before authorization"
+            ) from exc
         context_parameters = [
             parameter
             for parameter in function_signature.parameters.values()
-            if _is_context_annotation(parameter.annotation)
+            if _is_context_annotation(
+                resolved_annotations.get(parameter.name, parameter.annotation)
+            )
         ]
         if len(context_parameters) != 1:
             raise TypeError(
