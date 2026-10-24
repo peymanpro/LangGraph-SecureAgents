@@ -138,7 +138,8 @@ def test_simulation_report_serializes_summaries_without_sensitive_requests() -> 
     assert '"allowed": 1' in encoded
     assert '"denied": 3' in encoded
     assert "user-private-" not in encoded
-    assert "reports" not in encoded
+    assert '"principal_id":' not in encoded
+    assert '"resource":' not in encoded
 
 
 def test_bundle_explain_delegates_to_policy_engine() -> None:
