@@ -19,9 +19,11 @@ Use one of these Conventional Commit types for every change intended to update t
 On a push to `main`, GitHub Actions:
 
 1. Runs lint, formatting, strict typing, and the test suite on Python 3.11, 3.12, and 3.13, enforcing the configured minimum coverage.
-2. Builds the wheel and source distribution, validates distribution metadata, and smoke-tests the installed package and optional agent middleware.
-3. Uses Python Semantic Release to determine the next version, update `pyproject.toml` and `CHANGELOG.md`, create the version commit and Git tag, and create the GitHub Release.
-4. Builds and validates the versioned distribution artifacts, attaches them to the GitHub Release, and publishes those same artifacts to PyPI via Trusted Publishing (GitHub OIDC).
+2. Builds the wheel and source distribution and validates distribution metadata.
+3. Installs the built wheel in a clean environment and smoke-tests the core API.
+4. Installs and smoke-tests the optional LangChain middleware, OpenTelemetry audit adapter, and MCP tool adapter in separate clean environments.
+5. Uses Python Semantic Release to determine the next version, update `pyproject.toml` and `CHANGELOG.md`, create the version commit and Git tag, and create the GitHub Release.
+6. Builds and validates the versioned distribution artifacts, attaches them to the GitHub Release, and publishes those same artifacts to PyPI via Trusted Publishing (GitHub OIDC).
 
 The PyPI publishing job runs only after the release job succeeds. It receives `id-token: write` but no repository-content permission; no permanent PyPI API token is used. The PyPI Trusted Publisher must be configured for owner `peymanpro`, repository `LangGraph-SecureAgents`, workflow `.github/workflows/release.yml`, and the GitHub environment `pypi`. The environment must not require a manual reviewer when fully automatic publishing is desired.
 
@@ -29,6 +31,6 @@ The workflow's version commit is tagged as the release itself. A subsequent merg
 
 ## Verification after each release
 
-Check that the [GitHub Releases](https://github.com/peymanpro/LangGraph-SecureAgents/releases) and [PyPI project page](https://pypi.org/project/langgraph-secure-agents/) show the same version. Install that version in a clean virtual environment and verify both the core package and the `langchain-agents` extra. The package metadata includes the README, so publishing a new version also refreshes the project description displayed on PyPI.
+Check that the [GitHub Releases](https://github.com/peymanpro/LangGraph-SecureAgents/releases) and [PyPI project page](https://pypi.org/project/langgraph-secure-agents/) show the same version. Install that exact version in a clean virtual environment and smoke-test the core API. Separately install and verify the `langchain-agents`, `opentelemetry`, and `mcp` extras; CI exercises each optional integration in its own clean environment. The package metadata includes the README, so publishing a new version also refreshes the project description displayed on PyPI.
 
 CI verifies the automated checks listed above. It is not a substitute for reviewing application-specific authentication, policy rules, resource resolvers, approval handling, and downstream authorization controls; see the [threat model](threat-model.md).
