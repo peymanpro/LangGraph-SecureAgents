@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import ToolMessage
 
+from langgraph_secure_agents import middleware as middleware_module
 from langgraph_secure_agents import (
     DecisionReason,
     Effect,
@@ -15,7 +16,6 @@ from langgraph_secure_agents import (
 )
 from langgraph_secure_agents.audit import AuditEvent
 from langgraph_secure_agents.guard import AuthorizationDenied, protect_callable
-from langgraph_secure_agents import middleware as middleware_module
 from langgraph_secure_agents.middleware import create_authorization_middleware
 
 
