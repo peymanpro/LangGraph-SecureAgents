@@ -19,11 +19,15 @@ def test_end_to_end_demo_denies_cross_tenant_and_blocks_approval_replay(
         "read_customer:customer-101",
         "issue_refund:invoice-9001",
     )
+    # LangGraph restarts an interrupted node from its beginning on resume,
+    # so the pending decision is recorded again before each resumed decision.
     assert report.audit_reasons == (
         "explicit_allow",
         "default_deny",
         "approval_required",
+        "approval_required",
         "human_approved",
+        "approval_required",
         "approval_required",
         "approval_invalid",
     )
