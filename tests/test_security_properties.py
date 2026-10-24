@@ -107,9 +107,7 @@ def test_attribute_comparison_does_not_equate_boolean_and_integer() -> None:
         actions=frozenset({"read"}),
         resources=frozenset({"document:1"}),
         roles=frozenset({"analyst"}),
-        conditions=(
-            AttributeCondition("context.enabled", ConditionOperator.EQ, True),
-        ),
+        conditions=(AttributeCondition("context.enabled", ConditionOperator.EQ, True),),
     )
     policy = PolicyEngine([rule])
     request = AccessRequest(
