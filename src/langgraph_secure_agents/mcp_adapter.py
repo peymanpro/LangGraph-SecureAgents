@@ -16,7 +16,7 @@ from mcp.server.mcpserver import Context
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
 from .guard import AuditCallback, AuthorizationDenied
-from .models import AccessRequest, JSONValue, Principal
+from .models import AccessRequest, JSONValue, Principal, normalize_resource_id
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
 
@@ -165,6 +165,7 @@ def protect_mcp_tool(
                 if resource_resolver is None
                 else call_resolver_without_mutation(resource_resolver, tool_arguments)
             )
+            resource = normalize_resource_id(resource)
             resource_attributes = (
                 {}
                 if resource_attributes_resolver is None

@@ -10,7 +10,7 @@ from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
-from .models import AccessRequest, Decision, JSONValue, Principal
+from .models import AccessRequest, Decision, JSONValue, Principal, normalize_resource_id
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
 
@@ -150,6 +150,7 @@ def protect_callable(
             resource = resource_name
         else:
             resource = call_resolver_without_mutation(resource_resolver, *args, **kwargs)
+        resource = normalize_resource_id(resource)
 
         resource_attributes = (
             {}

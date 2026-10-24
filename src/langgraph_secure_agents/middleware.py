@@ -24,6 +24,7 @@ from .models import (
     JSONValue,
     PolicyRule,
     Principal,
+    normalize_resource_id,
 )
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
@@ -281,6 +282,7 @@ def create_authorization_middleware(
             if resource_resolver is None
             else call_resolver_without_mutation(resource_resolver, tool_name, tool_args)
         )
+        resource = normalize_resource_id(resource)
         resource_attributes = (
             {}
             if resource_attributes_resolver is None

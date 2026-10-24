@@ -10,10 +10,19 @@ from types import MappingProxyType
 from typing import TypeAlias
 
 
-def _normalized_text(value: str, field_name: str) -> str:
+def _normalized_text(value: object, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field_name} must be a non-empty string")
     return value.strip()
+
+
+def normalize_resource_id(value: object) -> str:
+    """Validate and canonicalize a concrete resource identifier before metadata lookup."""
+
+    resource = _normalized_text(value, "resource")
+    if resource == "*":
+        raise ValueError("access requests must name a concrete action and resource")
+    return resource
 
 
 def _normalized_set(
@@ -255,8 +264,8 @@ class AccessRequest:
         if not isinstance(self.principal, Principal):
             raise ValueError("principal must be a Principal instance")
         action = _normalized_text(self.action, "action")
-        resource = _normalized_text(self.resource, "resource")
-        if action == "*" or resource == "*":
+        resource = normalize_resource_id(self.resource)
+        if action == "*":
             raise ValueError("access requests must name a concrete action and resource")
         object.__setattr__(self, "action", action)
         object.__setattr__(self, "resource", resource)
