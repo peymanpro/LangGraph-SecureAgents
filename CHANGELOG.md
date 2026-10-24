@@ -4,6 +4,14 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.5.1 (2026-10-24)
+
+### Documentation
+
+- Sync README with v0.5.0 security APIs
+  ([`ce83ce9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ce83ce9f3f694cc99df71b3c4af4b8e3f6505e27))
+
+
 ## v0.5.0 (2026-10-24)
 
 ### Bug Fixes
