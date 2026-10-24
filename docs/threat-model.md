@@ -35,7 +35,7 @@ The SHA-256 bundle digest identifies serialized content; it is not a signature a
 
 ### Resolver purity and underlying resource
 
-Action and resource resolvers take part in authorization decisions. Mutating input arguments during scope resolution can cause the policy target to differ from what a protected operation later consumes. The library supplies detached copies to these resolvers and fails closed when it detects input mutation or cannot validate that the copies remain unchanged. Resolver callbacks must still be trusted application code and must not have unrelated side effects.
+Action and resource resolvers take part in authorization decisions. Mutating input arguments during scope resolution can cause the policy target to differ from what a protected operation later consumes. The library supplies detached copies to these resolvers and fails closed when it detects input mutation or cannot validate that the copies remain unchanged. Each resolved resource identifier is validated and whitespace-normalized before the resource-attributes resolver runs, ensuring that policy evaluation and metadata lookup receive the same canonical identifier. This does not remove the host's responsibility to map that identifier to the exact resource the protected operation actually accesses. Resolver callbacks must still be trusted application code and must not have unrelated side effects.
 
 ### Protected operation and underlying resource
 

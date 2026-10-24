@@ -98,13 +98,13 @@ def protect_callable(
 
     The principal resolver must obtain identity from trusted application context,
     not from arguments controlled by an LLM. The resource resolver must identify
-    the same resource the wrapped function will actually access. The resource
-    attributes resolver receives that resolved resource identifier and must load
-    metadata for the exact resource being accessed. The context resolver must
-    return trusted server-side request context. Resolver inputs are detached and
-    mutation is rejected. Resolvers must otherwise be trusted, side-effect-free
-    application code. If auditing is configured and the callback fails, execution
-    fails closed.
+    the same resource the wrapped function will actually access. Its returned
+    identifier is validated and whitespace-normalized before the resource
+    attributes resolver loads metadata, so both steps use the same canonical
+    value. The context resolver must return trusted server-side request context.
+    Resolver inputs are detached and mutation is rejected. Resolvers must otherwise
+    be trusted, side-effect-free application code. If auditing is configured and
+    the callback fails, execution fails closed.
     """
 
     if not callable(function):

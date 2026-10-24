@@ -200,12 +200,13 @@ def create_authorization_middleware(
     use. Configure one mechanism, not both. Without either mechanism, the legacy
     fingerprint check alone is not sufficient for side-effecting operations.
 
-    Action and resource resolvers receive detached argument copies. The resource
-    attributes resolver receives the resolved resource identifier, and the context
-    resolver receives a detached runtime-context copy. Resolver results must come
-    from trusted application data, not LLM claims. Mutating resolver inputs raises
-    an error before the protected tool runs. Resolvers must otherwise be trusted,
-    side-effect-free application code.
+    Action and resource resolvers receive detached argument copies. A resolved
+    resource identifier is validated and whitespace-normalized before the resource
+    attributes resolver receives it, so policy evaluation and metadata lookup use
+    the same canonical value. The context resolver receives a detached runtime-
+    context copy. Resolver results must come from trusted application data, not
+    LLM claims. Mutating resolver inputs raises an error before the protected tool
+    runs. Resolvers must otherwise be trusted, side-effect-free application code.
 
     If configured auditing raises, the tool handler is not invoked (fail closed).
     Approval outcomes are audited after the interrupt resumes.
