@@ -1,10 +1,10 @@
 """Reusable security primitives for LangGraph agents."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .guard import AuthorizationDenied, protect_callable
 from .models import AccessRequest, Decision, DecisionReason, Effect, PolicyRule, Principal
 from .policy import PolicyEngine
-
-from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("langgraph-secure-agents")
