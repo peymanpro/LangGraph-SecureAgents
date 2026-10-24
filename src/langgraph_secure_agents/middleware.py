@@ -309,18 +309,9 @@ def create_authorization_middleware(
                     request_id=request_id,
                     execution_id=execution_id,
                     tool_name=tool_name,
-                    policy_id=(
-                        policy_id if policy_id is not None
-                        else policy_snapshot.policy_id if policy_snapshot is not None else None
-                    ),
-                    policy_version=(
-                        policy_version if policy_version is not None
-                        else policy_snapshot.version if policy_snapshot is not None else None
-                    ),
-                    policy_digest=(
-                        policy_digest if policy_digest is not None
-                        else policy_snapshot.digest if policy_snapshot is not None else None
-                    ),
+                    policy_id=policy_snapshot.policy_id if policy_snapshot is not None else policy_id,
+                    policy_version=policy_snapshot.version if policy_snapshot is not None else policy_version,
+                    policy_digest=policy_snapshot.digest if policy_snapshot is not None else policy_digest,
                 )
                 audit_event_callback(event)
             if include_legacy and audit_callback is not None:
