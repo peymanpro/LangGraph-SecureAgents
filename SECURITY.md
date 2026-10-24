@@ -2,7 +2,7 @@
 
 ## Project status
 
-LangGraph-SecureAgents is experimental and has not received an independent security audit. The current pre-release API is not a production security certification.
+LangGraph-SecureAgents is a pre-1.0 authorization library. It has not received an independent third-party security audit. Its guarantees depend on correct identity resolution, policy configuration, resource mapping, and applying enforcement to every sensitive execution path.
 
 ## Reporting a vulnerability
 
@@ -21,4 +21,4 @@ When reporting, include the affected commit or version, a concise impact descrip
 - The library does not provide authentication, tenant isolation, rate limiting, prompt-injection prevention, secret management, or a human reviewer service. Its optional approval interrupt binds fingerprints to LangGraph checkpoint execution scope and fails closed if the required metadata/checkpointer is unavailable. The fingerprint itself is not a reviewer credential and is not a one-time token. The host application must authenticate reviewers, authorize access to the exact paused run, secure the resume endpoint, use unique per-operation IDs, and durably consume approvals once for side-effecting tools. The optional `approval_validator` hook can enforce reviewer validation and atomic durable consumption at the middleware boundary; never back it with process-local state for multi-worker deployments.
 - Security behavior should be verified against the exact version and policy configuration being deployed.
 
-Do not use this experimental project as the sole security boundary for production or sensitive data.
+Use the library as an authorization enforcement layer within a defense-in-depth design. Keep downstream authorization controls enabled, and review the threat model alongside your application's identity resolution, policy configuration, and resource mapping before deployment.
