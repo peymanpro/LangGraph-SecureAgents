@@ -8,15 +8,15 @@ from inspect import iscoroutinefunction
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from ._resolver_safety import call_resolver_without_mutation
-from .models import AccessRequest, Decision, Principal
+from .models import AccessRequest, Decision, JSONValue, Principal
 from .policy import PolicyEngine
 
 P = ParamSpec("P")
 R = TypeVar("R")
 AuditCallback = Callable[[AccessRequest, Decision], None]
 ResourceResolver = Callable[P, str]
-ResourceAttributesResolver = Callable[[str], Mapping[str, object]]
-ContextResolver = Callable[[], Mapping[str, object]]
+ResourceAttributesResolver = Callable[[str], Mapping[str, JSONValue]]
+ContextResolver = Callable[[], Mapping[str, JSONValue]]
 
 
 class AuthorizationDenied(PermissionError):
@@ -123,9 +123,7 @@ def protect_callable(
         if not isinstance(resource_attributes, Mapping):
             raise TypeError("resource_attributes_resolver must return a mapping")
         context_attributes = (
-            {}
-            if context_resolver is None
-            else call_resolver_without_mutation(context_resolver)
+            {} if context_resolver is None else call_resolver_without_mutation(context_resolver)
         )
         if not isinstance(context_attributes, Mapping):
             raise TypeError("context_resolver must return a mapping")
