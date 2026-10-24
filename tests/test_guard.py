@@ -355,7 +355,6 @@ def test_callable_guard_fails_closed_when_attribute_resolvers_return_non_mapping
         guarded("42")
 
 
-
 def test_callable_guard_fails_closed_when_context_resolver_returns_non_mapping() -> None:
     calls: list[bool] = []
 
