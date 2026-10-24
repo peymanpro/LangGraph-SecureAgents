@@ -136,8 +136,12 @@ def protect_callable(
 
     def authorize(*args: P.args, **kwargs: P.kwargs) -> None:
         started = perf_counter()
-        policy_snapshot = policy.snapshot() if isinstance(policy, PolicyRegistry) else None
-        active_policy = policy_snapshot.engine if policy_snapshot is not None else policy
+        if isinstance(policy, PolicyRegistry):
+            policy_snapshot = policy.snapshot()
+            active_policy = policy_snapshot.engine
+        else:
+            policy_snapshot = None
+            active_policy = policy
         principal = principal_resolver()
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
