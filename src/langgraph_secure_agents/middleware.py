@@ -233,7 +233,9 @@ def create_authorization_middleware(
     if approval_store is not None and approval_validator is not None:
         raise ValueError("configure approval_store or approval_validator, not both")
     if (approval_store is None) != (approval_reviewer_resolver is None):
-        raise ValueError("approval_store and approval_reviewer_resolver must be configured together")
+        raise ValueError(
+            "approval_store and approval_reviewer_resolver must be configured together"
+        )
 
     @wrap_tool_call(name="secure_agent_authorization")
     def enforce_authorization(request: Any, handler: Callable[[Any], Any]) -> Any:
@@ -309,9 +311,15 @@ def create_authorization_middleware(
                     request_id=request_id,
                     execution_id=execution_id,
                     tool_name=tool_name,
-                    policy_id=policy_snapshot.policy_id if policy_snapshot is not None else policy_id,
-                    policy_version=policy_snapshot.version if policy_snapshot is not None else policy_version,
-                    policy_digest=policy_snapshot.digest if policy_snapshot is not None else policy_digest,
+                    policy_id=(
+                        policy_snapshot.policy_id if policy_snapshot is not None else policy_id
+                    ),
+                    policy_version=(
+                        policy_snapshot.version if policy_snapshot is not None else policy_version
+                    ),
+                    policy_digest=(
+                        policy_snapshot.digest if policy_snapshot is not None else policy_digest
+                    ),
                 )
                 audit_event_callback(event)
             if include_legacy and audit_callback is not None:
@@ -369,7 +377,9 @@ def create_authorization_middleware(
                     runtime_context,
                 )
                 if not isinstance(reviewer_id, str) or not reviewer_id.strip():
-                    raise TypeError("approval_reviewer_resolver must return a non-empty reviewer ID")
+                    raise TypeError(
+                        "approval_reviewer_resolver must return a non-empty reviewer ID"
+                    )
                 approval_valid = (
                     isinstance(approval_token, str)
                     and bool(approval_token)
