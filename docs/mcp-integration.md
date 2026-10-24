@@ -63,7 +63,7 @@ The adapter has no built-in identity provider. The `principal_resolver` must con
 
 - Policy evaluation happens before the original handler executes.
 - Default-deny, deny-overrides, RBAC/ABAC conditions, and `PolicyRegistry` snapshots use the existing policy engine.
-- The resource resolver receives the tool's bound arguments (excluding the injected Context). The adapter calls it with detached inputs and rejects detected mutation.
+- The resource resolver receives the tool's bound arguments (excluding the injected Context). The adapter calls it with detached inputs and rejects detected mutation. Its returned identifier is validated and whitespace-normalized before the resource-attributes resolver runs, so policy evaluation and metadata lookup use the same canonical value.
 - A configured audit callback receives a structured event with source `mcp_tool`, tool name, request ID where available, and policy metadata. If the callback raises, the handler does not execute.
 - An authorization denial raises `AuthorizationDenied`; the MCP SDK represents a tool-body exception as an error result. The adapter does not return the protected result on a denial.
 

@@ -16,7 +16,7 @@ from mcp.server.mcpserver import Context
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
 from .guard import AuditCallback, AuthorizationDenied
-from .models import AccessRequest, JSONValue, Principal
+from .models import AccessRequest, JSONValue, Principal, normalize_resource_id
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
 
@@ -54,8 +54,10 @@ def protect_mcp_tool(
 
     The principal resolver must derive identity from trusted authentication state
     available to the host application. MCP Context headers are caller-controlled
-    and must not be treated as proof of identity. Resource attributes must
-    describe the exact resource the handler will access.
+    and must not be treated as proof of identity. The resolved resource identifier
+    is validated and whitespace-normalized before resource metadata is loaded, so
+    policy evaluation and metadata lookup use the same canonical value. Resource
+    attributes must describe the exact resource the handler will access.
 
     A denial, including a REQUIRE_APPROVAL policy result, raises
     AuthorizationDenied before the handler executes. This adapter does not
@@ -165,6 +167,7 @@ def protect_mcp_tool(
                 if resource_resolver is None
                 else call_resolver_without_mutation(resource_resolver, tool_arguments)
             )
+            resource = normalize_resource_id(resource)
             resource_attributes = (
                 {}
                 if resource_attributes_resolver is None

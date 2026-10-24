@@ -10,7 +10,7 @@ from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
-from .models import AccessRequest, Decision, JSONValue, Principal
+from .models import AccessRequest, Decision, JSONValue, Principal, normalize_resource_id
 from .policy import PolicyEngine
 from .policy_registry import PolicyRegistry
 
@@ -98,13 +98,13 @@ def protect_callable(
 
     The principal resolver must obtain identity from trusted application context,
     not from arguments controlled by an LLM. The resource resolver must identify
-    the same resource the wrapped function will actually access. The resource
-    attributes resolver receives that resolved resource identifier and must load
-    metadata for the exact resource being accessed. The context resolver must
-    return trusted server-side request context. Resolver inputs are detached and
-    mutation is rejected. Resolvers must otherwise be trusted, side-effect-free
-    application code. If auditing is configured and the callback fails, execution
-    fails closed.
+    the same resource the wrapped function will actually access. Its returned
+    identifier is validated and whitespace-normalized before the resource
+    attributes resolver loads metadata, so both steps use the same canonical
+    value. The context resolver must return trusted server-side request context.
+    Resolver inputs are detached and mutation is rejected. Resolvers must otherwise
+    be trusted, side-effect-free application code. If auditing is configured and
+    the callback fails, execution fails closed.
     """
 
     if not callable(function):
@@ -150,6 +150,7 @@ def protect_callable(
             resource = resource_name
         else:
             resource = call_resolver_without_mutation(resource_resolver, *args, **kwargs)
+        resource = normalize_resource_id(resource)
 
         resource_attributes = (
             {}
