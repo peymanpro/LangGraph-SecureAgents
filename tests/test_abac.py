@@ -431,7 +431,9 @@ def test_attribute_reference_to_missing_path_fails_closed() -> None:
 
 def test_numeric_comparison_rejects_non_numeric_actual_values() -> None:
     condition = AttributeCondition("context.clearance", ConditionOperator.GT, 3)
-    decision = PolicyEngine([allow_rule(condition)]).evaluate(request(context={"clearance": "high"}))
+    decision = PolicyEngine([allow_rule(condition)]).evaluate(
+        request(context={"clearance": "high"})
+    )
 
     assert not decision.allowed
 
@@ -455,7 +457,10 @@ def test_abac_equality_supports_nested_mappings_and_sequences() -> None:
 
     context = {"profile": {"department": "hr", "level": 2}, "labels": ["hr", "finance"]}
     assert PolicyEngine([allow_rule(mapping_match)]).evaluate(request(context=context)).allowed
-    assert not PolicyEngine([allow_rule(mapping_mismatch)]).evaluate(request(context=context)).allowed
+    mismatch_decision = PolicyEngine([allow_rule(mapping_mismatch)]).evaluate(
+        request(context=context)
+    )
+    assert not mismatch_decision.allowed
     assert PolicyEngine([allow_rule(sequence_match)]).evaluate(request(context=context)).allowed
 
 
