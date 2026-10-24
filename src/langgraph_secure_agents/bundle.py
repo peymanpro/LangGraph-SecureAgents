@@ -452,7 +452,11 @@ class PolicyBundle:
                         ),
                     )
                 )
-            if rule.effect is Effect.ALLOW and rule.principal_ids == frozenset({"*"}):
+            unrestricted_principals = (
+                not rule.roles
+                and (not rule.principal_ids or rule.principal_ids == frozenset({"*"}) )
+            )
+            if rule.effect is Effect.ALLOW and unrestricted_principals:
                 findings.append(
                     PolicyDiagnostic(
                         code="SEC002",
