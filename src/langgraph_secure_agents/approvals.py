@@ -182,4 +182,3 @@ class SQLiteApprovalStore:
 
         with self._lock:
             self._connection.close()
-
