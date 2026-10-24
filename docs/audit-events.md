@@ -9,6 +9,7 @@ The core event type and JSON serialization do not require OpenTelemetry. The cus
 ~~~python
 from langgraph_secure_agents import AuditEvent, protect_callable
 
+
 def record_event(event: AuditEvent) -> None:
     # Use include_sensitive=True only because this sink is trusted.
     durable_audit_store.write(event.to_json(include_sensitive=True))
