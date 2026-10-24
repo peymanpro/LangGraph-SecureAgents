@@ -275,7 +275,7 @@ def create_authorization_middleware(
         )
         decision = policy.evaluate(access_request)
 
-        def emit_audit(outcome: Decision) -> None:
+        def emit_audit(outcome: Decision, *, include_legacy: bool = True) -> None:
             duration_ms = (perf_counter() - started) * 1000.0
             if audit_event_callback is not None:
                 event = AuditEvent.from_decision(
@@ -288,9 +288,13 @@ def create_authorization_middleware(
                     policy_digest=policy_digest,
                 )
                 audit_event_callback(event)
-            emit_audit(outcome)
+            if include_legacy and audit_callback is not None:
+                audit_callback(access_request, outcome)
 
         if decision.requires_approval:
+            # Record the policy decision before interrupting so pending approvals are
+            # observable even if the graph is never resumed.
+            emit_audit(decision, include_legacy=False)
             if not isinstance(tool_call_id, str) or not tool_call_id:
                 raise ValueError("approval-required tool calls must include a tool-call id")
 
@@ -358,8 +362,7 @@ def create_authorization_middleware(
                     reason=DecisionReason.APPROVAL_DENIED,
                     matched_rule_ids=decision.matched_rule_ids,
                 )
-                if audit_callback is not None:
-                    audit_callback(access_request, outcome)
+                emit_audit(outcome)
                 return ToolMessage(
                     content="Human approval denied.",
                     tool_call_id=tool_call_id,
@@ -371,8 +374,7 @@ def create_authorization_middleware(
                 reason=DecisionReason.HUMAN_APPROVED,
                 matched_rule_ids=decision.matched_rule_ids,
             )
-            if audit_callback is not None:
-                audit_callback(access_request, outcome)
+            emit_audit(outcome)
             return handler(request)
 
         emit_audit(decision)
