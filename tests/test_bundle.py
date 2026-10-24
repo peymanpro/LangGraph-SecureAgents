@@ -198,6 +198,9 @@ def test_bundle_metadata_and_rules_are_validated() -> None:
     with pytest.raises(ValueError, match="policy_id must be a non-empty string"):
         PolicyBundle(policy_id=" ", version="1.0.0", rules=())
 
+    with pytest.raises(ValueError, match="semantic version"):
+        PolicyBundle(policy_id="sample", version=None, rules=())  # type: ignore[arg-type]
+
     with pytest.raises(ValueError, match="description must be a string"):
         PolicyBundle(policy_id="sample", version="1.0.0", rules=(), description=None)  # type: ignore[arg-type]
 
