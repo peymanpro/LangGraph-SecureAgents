@@ -2,7 +2,9 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+from .approvals import ApprovalStore, SQLiteApprovalStore
 from .audit import AuditEvent, AuditEventCallback, create_opentelemetry_callback
+from .audit_store import AuditRecord, SQLiteAuditSink
 from .bundle import (
     DiagnosticSeverity,
     PolicyBundle,
@@ -23,6 +25,7 @@ from .models import (
     Principal,
 )
 from .policy import ConditionTrace, PolicyEngine, PolicyExplanation, RuleTrace
+from .policy_registry import PolicyRegistry, PolicySnapshot, PolicyUpdateConflict
 
 try:
     __version__ = version("langgraph-secure-agents")
@@ -32,7 +35,11 @@ except PackageNotFoundError:
 
 __all__ = [
     "__version__",
+    "ApprovalStore",
+    "SQLiteApprovalStore",
     "AuditEvent",
+    "AuditRecord",
+    "SQLiteAuditSink",
     "AuditEventCallback",
     "create_opentelemetry_callback",
     "AccessRequest",
@@ -49,6 +56,9 @@ __all__ = [
     "PolicyDiagnostic",
     "PolicyEngine",
     "PolicyExplanation",
+    "PolicyRegistry",
+    "PolicySnapshot",
+    "PolicyUpdateConflict",
     "PolicyRule",
     "Principal",
     "protect_callable",
