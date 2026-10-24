@@ -34,7 +34,11 @@ def sample_bundle() -> PolicyBundle:
                         ConditionOperator.EQ,
                         AttributeReference("resource.attributes.tenant_id"),
                     ),
-                    AttributeCondition("context.environment", ConditionOperator.IN, ["prod", "stage"]),
+                    AttributeCondition(
+                        "context.environment",
+                        ConditionOperator.IN,
+                        ["prod", "stage"],
+                    ),
                 ),
             ),
             PolicyRule(
@@ -139,7 +143,10 @@ def test_json_bundle_rejects_duplicate_keys() -> None:
 
 def test_json_bundle_rejects_duplicate_nested_keys() -> None:
     text = json.dumps(sample_bundle().to_dict())
-    text = text.replace('"rule_id": "analysts-read-own-tenant"', '"rule_id": "first", "rule_id": "second"')
+    text = text.replace(
+        '"rule_id": "analysts-read-own-tenant"',
+        '"rule_id": "first", "rule_id": "second"',
+    )
 
     with pytest.raises(ValueError, match="duplicate key"):
         PolicyBundle.from_json(text)
@@ -276,7 +283,9 @@ def test_yaml_round_trip_uses_safe_serialization() -> None:
     assert restored.digest == original.digest
 
 
-def test_yaml_support_can_be_absent_without_breaking_core_bundle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_yaml_support_can_be_absent_without_breaking_core_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     original = sample_bundle()
 
     with monkeypatch.context() as patcher:
