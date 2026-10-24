@@ -32,7 +32,7 @@ guarded_lookup = protect_callable(
 
 request_id_resolver receives the same arguments as the protected callable, through the library's detached-copy resolver boundary. execution_id_resolver takes no arguments. Use trusted application context for both; do not derive identity or correlation values from model-generated claims. These optional resolvers are only evaluated when audit_event_callback is configured.
 
-For LangChain/LangGraph tools, create_authorization_middleware accepts the same audit_event_callback and policy metadata parameters. Its event includes the tool-call ID as request_id, the runtime task ID as execution_id when available, and the tool name separately from the policy resource.
+For LangChain/LangGraph tools, create_authorization_middleware accepts the same audit_event_callback and policy metadata parameters. The optional MCP adapter emits the same event shape with source mcp_tool for explicitly protected MCP tool handlers. Its event includes the tool-call ID as request_id, the runtime task ID as execution_id when available, and the tool name separately from the policy resource.
 
 ## Event schema
 
@@ -42,7 +42,7 @@ Every event has schema version 1, event name authorization.decision, a unique ev
 | --- | --- |
 | event_id | Unique ID for this emitted event. It is not a stable request correlation ID. |
 | timestamp | Time the event was created, normalized to UTC. |
-| source | Boundary that produced the event, such as python_callable or langchain_tool. |
+| source | Boundary that produced the event, such as python_callable, langchain_tool, or mcp_tool. |
 | action, resource, tool_name | The action and resource evaluated; the tool name is separate when emitted by middleware. |
 | allowed, decision_reason, requires_approval | Machine-readable outcome and whether a policy decision requires a human response. |
 | matched_rule_count, matched_rule_ids | Number of matched rules; IDs are sensitive and omitted from default serialization. |
