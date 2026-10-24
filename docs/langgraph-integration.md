@@ -24,15 +24,18 @@ class RequestContext(TypedDict):
     user_id: str
     roles: list[str]
 
+
 def resolve_principal(context: object) -> Principal:
     # The host must populate this context from authenticated server-side data.
     if not isinstance(context, Mapping):
         raise TypeError("expected trusted runtime context")
     return Principal(str(context["user_id"]), roles=frozenset(context["roles"]))
 
+
 def refund_node(state: dict[str, str], runtime: Runtime[RequestContext]) -> dict[str, bool]:
     # Call the actual domain operation here.
     return {"completed": True}
+
 
 protected_node = protect_node(
     refund_node,
