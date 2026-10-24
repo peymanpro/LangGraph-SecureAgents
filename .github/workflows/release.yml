@@ -97,6 +97,7 @@ jobs:
 
   release:
     name: Version and prepare release
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [quality, package-smoke]
     permissions:
