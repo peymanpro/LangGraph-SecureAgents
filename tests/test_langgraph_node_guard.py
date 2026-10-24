@@ -59,10 +59,10 @@ def _graph(
     **guard_options: Any,
 ) -> Any:
     guard_options.setdefault("resource_resolver", lambda state: state["resource_id"])
+    guard_options.setdefault("principal_resolver", _principal)
     protected = protect_node(
         node,
         policy=policy,
-        principal_resolver=_principal,
         action="refund",
         **guard_options,
     )
