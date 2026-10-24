@@ -102,6 +102,26 @@ The legacy audit_callback(request, decision) remains supported. For approval-req
 
 Auditing is synchronous at the enforcement boundary. If a configured callback raises, the protected callable or middleware tool handler is not invoked. The exception propagates to the host application. This is intentional fail-closed behavior: a host that requires a durable audit record before side effects should use a sink that confirms persistence before returning successfully.
 
-The library does not provide an audit database, background delivery worker, retry queue, retention policy, access-control system for audit records, or tamper-evident storage. It also does not emit events for failures that occur before an authorization request and decision can be constructed, such as an exception in a principal resolver. Operate and monitor the sink separately, and avoid logging raw request data in exception handlers.
+## Durable SQLite sink and integrity checks
+
+For synchronous persistence, use the built-in `SQLiteAuditSink` as the structured event callback:
+
+    from langgraph_secure_agents import SQLiteAuditSink, protect_callable
+
+    audit_sink = SQLiteAuditSink("/var/lib/my-service/authorization-audit.sqlite3")
+    protected = protect_callable(
+        read_report,
+        policy=policy,
+        principal_resolver=current_principal,
+        audit_event_callback=audit_sink,
+    )
+
+The callback returns only after the SQLite transaction commits. A database failure propagates to the guard or middleware and prevents the protected operation from executing. The sink uses privacy-safe event serialization by default; enable `include_sensitive=True` only when the database and its operators are authorized to access principal IDs, roles, resource identifiers, matched rule IDs, correlation IDs, and policy digests.
+
+Each record contains the previous record's hash and a SHA-256 hash over its sequence, previous hash, and canonical serialized event. Call `audit_sink.verify_integrity()` to check the retained chain. This is tamper-evident against individual record modification, deletion, or reordering, but it is not tamper-proof: an actor able to rewrite the entire database can recompute the chain. For stronger assurance, periodically export and anchor chain heads in a separately controlled system.
+
+The sink is synchronous and does not provide a background retry queue, automatic retention/deletion, an access-control system, or a remote archive. SQLite's busy timeout handles brief lock contention; persistent failures still raise and fail closed. Records are not pruned automatically because deletion breaks the retained chain. Plan database access controls, backups, archival, retention, monitoring, disk capacity, and any external chain-head anchoring as operational controls.
+
+The library also does not emit events for failures that occur before an authorization request and decision can be constructed, such as an exception in a principal resolver. Avoid logging raw request data in exception handlers.
 
 For the overall trust boundaries, see the threat model (threat-model.md).

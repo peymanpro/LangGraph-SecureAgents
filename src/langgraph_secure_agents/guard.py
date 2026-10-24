@@ -12,6 +12,7 @@ from ._resolver_safety import call_resolver_without_mutation
 from .audit import AuditEvent, AuditEventCallback
 from .models import AccessRequest, Decision, JSONValue, Principal
 from .policy import PolicyEngine
+from .policy_registry import PolicyRegistry
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -36,7 +37,7 @@ class AuthorizationDenied(PermissionError):
 def protect_callable(
     function: Callable[P, Awaitable[R]],
     *,
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: Callable[[], Principal],
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
@@ -56,7 +57,7 @@ def protect_callable(
 def protect_callable(
     function: Callable[P, R],
     *,
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: Callable[[], Principal],
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
@@ -75,7 +76,7 @@ def protect_callable(
 def protect_callable(
     function: Callable[P, Any],
     *,
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: Callable[[], Principal],
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
@@ -108,8 +109,8 @@ def protect_callable(
 
     if not callable(function):
         raise TypeError("function must be callable")
-    if not isinstance(policy, PolicyEngine):
-        raise TypeError("policy must be a PolicyEngine instance")
+    if not isinstance(policy, (PolicyEngine, PolicyRegistry)):
+        raise TypeError("policy must be a PolicyEngine instance or a PolicyRegistry instance")
     if not callable(principal_resolver):
         raise TypeError("principal_resolver must be callable")
     if resource_resolver is not None and not callable(resource_resolver):
@@ -135,6 +136,12 @@ def protect_callable(
 
     def authorize(*args: P.args, **kwargs: P.kwargs) -> None:
         started = perf_counter()
+        if isinstance(policy, PolicyRegistry):
+            policy_snapshot = policy.snapshot()
+            active_policy = policy_snapshot.engine
+        else:
+            policy_snapshot = None
+            active_policy = policy
         principal = principal_resolver()
         if not isinstance(principal, Principal):
             raise TypeError("principal_resolver must return a Principal instance")
@@ -164,7 +171,7 @@ def protect_callable(
             resource_attributes=resource_attributes,
             context=context_attributes,
         )
-        decision = policy.evaluate(request)
+        decision = active_policy.evaluate(request)
         duration_ms = (perf_counter() - started) * 1000.0
 
         if audit_event_callback is not None:
@@ -185,9 +192,13 @@ def protect_callable(
                 duration_ms=duration_ms,
                 request_id=request_id,
                 execution_id=execution_id,
-                policy_id=policy_id,
-                policy_version=policy_version,
-                policy_digest=policy_digest,
+                policy_id=policy_snapshot.policy_id if policy_snapshot is not None else policy_id,
+                policy_version=(
+                    policy_snapshot.version if policy_snapshot is not None else policy_version
+                ),
+                policy_digest=(
+                    policy_snapshot.digest if policy_snapshot is not None else policy_digest
+                ),
             )
             audit_event_callback(event)
 

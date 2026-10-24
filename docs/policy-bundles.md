@@ -84,4 +84,25 @@ The example loads the YAML policy, runs lint, compares it with a previous versio
 
 bundle.digest is a deterministic SHA-256 digest of the canonical serialized bundle. It is useful for change detection, cache keys, and recording which artifact was evaluated. It is **not** a digital signature and does not prove who created the file. Verify provenance and integrity through your trusted deployment process, and only load policy files from locations controlled by trusted maintainers.
 
-Bundles are immutable after construction, but this package does not provide a policy registry, a database, automatic hot reload, signed policy delivery, authentication, or database-level tenant isolation. The application must continue to construct principals and resource/context attributes from trusted sources and protect the same resource that the policy evaluates.
+Bundles are immutable after construction. The optional `PolicyRegistry` provides in-process atomic publication, generation checks, and bounded rollback history:
+
+    from langgraph_secure_agents import PolicyBundle, PolicyRegistry
+
+    registry = PolicyRegistry(PolicyBundle.from_file("policies/payroll.json"))
+    current = registry.snapshot()
+
+    # Parse and validate the file before swapping the active snapshot.
+    deployed = registry.reload(
+        "policies/payroll-v2.json",
+        expected_generation=current.generation,
+    )
+    print(deployed.generation, deployed.version, deployed.digest)
+
+    # If the rollout is wrong, publish the previous snapshot as a new generation.
+    restored = registry.rollback(expected_generation=deployed.generation)
+
+The registry swaps a complete immutable snapshot under a lock. Each guarded callable or middleware invocation that receives the registry captures one snapshot and uses its policy engine and bundle metadata for that decision. An optional `expected_generation` implements compare-and-swap and rejects stale concurrent updates with `PolicyUpdateConflict`. Reusing a published semantic version with different content is rejected. The generation number increases on rollback; it is not rewound.
+
+The registry is process-local: its history is not persisted, updates are not broadcast to other workers, and it does not watch the filesystem. In multi-worker deployments, coordinate validated bundle publication and rollout across workers, and reload a trusted bundle after process restart. The registry does not authenticate deployers, sign artifacts, or prove policy provenance.
+
+The application must continue to construct principals and resource/context attributes from trusted sources and protect the same resource that the policy evaluates. This package does not provide database-level tenant isolation.

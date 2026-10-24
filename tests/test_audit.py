@@ -281,3 +281,67 @@ def test_opentelemetry_callback_gives_install_guidance_if_optional_api_is_absent
 def test_opentelemetry_callback_rejects_invalid_configuration(kwargs: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         create_opentelemetry_callback(**kwargs)  # type: ignore[arg-type]
+
+
+def test_audit_event_rejects_malformed_optional_and_collection_fields() -> None:
+    with pytest.raises(ValueError, match="request_id must be a non-empty string"):
+        sample_event(request_id=" ")
+
+    with pytest.raises(ValueError, match="principal_id must be a non-empty string"):
+        sample_event(principal_id=" ")
+
+    with pytest.raises(ValueError, match="known DecisionReason"):
+        sample_event(decision_reason="not-a-decision")
+
+    with pytest.raises(ValueError, match="requires_approval must be a boolean"):
+        sample_event(requires_approval=1)
+
+    with pytest.raises(ValueError, match="cannot describe an allowed outcome"):
+        sample_event(decision_reason=DecisionReason.DEFAULT_DENY, allowed=True)
+
+    with pytest.raises(ValueError, match="cannot describe a denied outcome"):
+        sample_event(decision_reason=DecisionReason.EXPLICIT_ALLOW, allowed=False)
+
+    with pytest.raises(ValueError, match="principal_roles must be a collection"):
+        sample_event(principal_roles="analyst")
+
+    with pytest.raises(ValueError, match="principal_roles must be an iterable"):
+        sample_event(principal_roles=None)
+
+    with pytest.raises(ValueError, match="principal role must be a non-empty string"):
+        sample_event(principal_roles=("",))
+
+    with pytest.raises(ValueError, match="matched_rule_ids must be a collection"):
+        sample_event(matched_rule_ids="rule-a")
+
+    with pytest.raises(ValueError, match="matched_rule_ids must be an iterable"):
+        sample_event(matched_rule_ids=None)
+
+    with pytest.raises(ValueError, match="timezone-aware datetime"):
+        sample_event(timestamp="not-a-datetime")
+
+
+def test_audit_event_constructors_reject_wrong_types_and_sensitive_flag() -> None:
+    request = AccessRequest(
+        principal=Principal("alice", roles=frozenset({"analyst"})),
+        action="read",
+        resource="payroll:employee-7",
+    )
+    decision = Decision(
+        allowed=True,
+        reason=DecisionReason.EXPLICIT_ALLOW,
+        matched_rule_ids=("allow-payroll-read",),
+    )
+
+    with pytest.raises(TypeError, match="AccessRequest instance"):
+        AuditEvent.from_decision(object(), decision)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="Decision instance"):
+        AuditEvent.from_decision(request, object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="include_sensitive must be a boolean"):
+        sample_event().to_dict(include_sensitive=1)  # type: ignore[arg-type]
+
+
+def test_opentelemetry_callback_rejects_non_audit_events() -> None:
+    callback = create_opentelemetry_callback()
+    with pytest.raises(TypeError, match="AuditEvent instance"):
+        callback(object())  # type: ignore[arg-type]
