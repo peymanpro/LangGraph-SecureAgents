@@ -26,7 +26,7 @@ from .policy import PolicyEngine
 PrincipalResolver = Callable[[object], Principal]
 ActionResolver = Callable[[str, Mapping[str, Any]], str]
 ResourceResolver = Callable[[str, Mapping[str, Any]], str]
-ResourceAttributesResolver = Callable[[str, Mapping[str, Any]], Mapping[str, object]]
+ResourceAttributesResolver = Callable[[str], Mapping[str, object]]
 ContextResolver = Callable[[object], Mapping[str, object]]
 AuditCallback = Callable[[AccessRequest, Decision], None]
 ApprovalValidator = Callable[[Mapping[str, Any], AccessRequest, str], bool]
@@ -183,11 +183,12 @@ def create_authorization_middleware(
     not be based on untrusted model output. Without this callback, the host
     remains responsible for these controls externally.
 
-    Custom action, resource, and resource-attribute resolvers receive detached
-    argument copies. The context resolver receives a detached runtime-context copy.
-    Resolver results must come from trusted application data, not LLM claims. Mutating
-    resolver inputs raises an error before the protected tool runs. Resolvers must
-    otherwise be trusted, side-effect-free application code.
+    Action and resource resolvers receive detached argument copies. The resource
+    attributes resolver receives the resolved resource identifier, and the context
+    resolver receives a detached runtime-context copy. Resolver results must come
+    from trusted application data, not LLM claims. Mutating resolver inputs raises
+    an error before the protected tool runs. Resolvers must otherwise be trusted,
+    side-effect-free application code.
 
     If configured auditing raises, the tool handler is not invoked (fail closed).
     Approval outcomes are audited after the interrupt resumes.
@@ -244,9 +245,7 @@ def create_authorization_middleware(
         resource_attributes = (
             {}
             if resource_attributes_resolver is None
-            else call_resolver_without_mutation(
-                resource_attributes_resolver, tool_name, tool_args
-            )
+            else call_resolver_without_mutation(resource_attributes_resolver, resource)
         )
         if not isinstance(resource_attributes, Mapping):
             raise TypeError("resource_attributes_resolver must return a mapping")
