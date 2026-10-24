@@ -23,9 +23,7 @@ def test_grant_is_bound_to_fingerprint_and_reviewer_and_is_single_use(
     assert store.consume(token, "fingerprint-a", "reviewer-1") is False
 
     with sqlite3.connect(database) as connection:
-        stored_hash = connection.execute(
-            "SELECT token_hash FROM approval_grants"
-        ).fetchone()[0]
+        stored_hash = connection.execute("SELECT token_hash FROM approval_grants").fetchone()[0]
     assert stored_hash != token
     store.close()
 
