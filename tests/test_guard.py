@@ -407,6 +407,7 @@ def test_async_callable_executes_when_authorization_succeeds() -> None:
 
     assert asyncio.run(guarded()) == "approved"
 
+
 def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
     resolved_resources: list[str] = []
 

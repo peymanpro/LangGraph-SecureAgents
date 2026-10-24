@@ -1003,6 +1003,7 @@ def test_middleware_fails_closed_when_context_resolver_returns_non_mapping() -> 
             lambda request: ToolMessage(content="should not run", tool_call_id="call-bad-context"),
         )
 
+
 def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
     resolved_resources: list[str] = []
 

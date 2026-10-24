@@ -218,6 +218,7 @@ def test_adapter_rejects_handlers_without_exactly_one_required_context() -> None
         def optional_context(customer_id: str, ctx: Context = _MISSING_CONTEXT) -> str:
             return customer_id
 
+
 def test_resource_attributes_resolver_receives_normalized_resource_id() -> None:
     tool_context = cast(Context, SimpleNamespace(request_id="normalized-resource"))
     resolved_resources: list[str] = []
