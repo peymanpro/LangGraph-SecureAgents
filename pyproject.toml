@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "langgraph-secure-agents"
 version = "0.7.2"
-description = "Deterministic access control for LangGraph agents."
+description = "Deterministic authorization for Python callables, LangGraph nodes, agent tools, and MCP tools."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-keywords = ["langgraph", "ai-agents", "authorization", "access-control", "security"]
+keywords = ["langgraph", "langgraph-nodes", "ai-agents", "authorization", "access-control", "security", "rbac", "abac", "policy-engine", "langchain", "mcp", "audit-logging"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
