@@ -5,14 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .models import AccessRequest, AttributeCondition, AttributeReference, Decision, DecisionReason, Effect, PolicyRule
-from .policy import PolicyEngine
+from .models import AccessRequest, AttributeCondition, AttributeReference, Decision, Effect, PolicyRule
+from .policy import PolicyEngine, PolicyExplanation
 
 _SCHEMA_VERSION = 1
 _SEMVER_PATTERN = re.compile(
@@ -349,14 +349,14 @@ class PolicyBundle:
             allow_nan=False,
         )
 
-    def explain(self, request: AccessRequest) -> object:
+    def explain(self, request: AccessRequest) -> PolicyExplanation:
         """Explain a request using the bundle's policy engine."""
 
         return self.engine.explain(request)
 
     def simulate(
         self,
-        requests: object,
+        requests: Iterable[AccessRequest],
         *,
         baseline: PolicyBundle | None = None,
     ) -> SimulationReport:
@@ -372,7 +372,7 @@ class PolicyBundle:
         if isinstance(requests, (str, bytes)):
             raise TypeError("requests must be an iterable of AccessRequest instances")
         try:
-            request_batch = tuple(requests)  # type: ignore[arg-type]
+            request_batch = tuple(requests)
         except TypeError as exc:
             raise TypeError("requests must be an iterable of AccessRequest instances") from exc
 
