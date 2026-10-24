@@ -89,6 +89,10 @@ def test_audit_event_serialization_redacts_identifiers_by_default() -> None:
     assert "policy_digest" not in payload
     assert "alice" not in encoded
     assert "payroll:employee-7" not in encoded
+    assert "request-123" not in encoded
+    assert "run-456" not in encoded
+    assert "read_payroll" not in encoded
+    assert "a" * 64 not in encoded
 
 
 def test_audit_event_can_explicitly_serialize_sensitive_fields() -> None:
