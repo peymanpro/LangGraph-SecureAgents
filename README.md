@@ -19,6 +19,7 @@ LangGraph-SecureAgents evaluates authorization in trusted application code and e
 - **Versioned policy bundles** that load declarative JSON/YAML rules, lint risky scopes, explain decisions, and simulate proposed changes against a baseline. An in-process policy registry adds atomic publication, generation checks, and rollback.
 - **Structured authorization audit events** with privacy-conscious serialization, an optional OpenTelemetry adapter, and a durable SQLite sink with a verifiable hash chain.
 - **Callable protection** with `protect_callable`, so authorization is checked immediately before execution.
+- **Optional LangGraph node guard** via `protect_node`, which authorizes selected sensitive graph nodes using trusted runtime context before the original node executes.
 - **Optional LangChain agent middleware** that checks tool calls before the tool handler runs.
 - **Optional MCP server tool decorator** that evaluates policies inside each registered MCP handler, without relying on the MCP SDK's provisional generic middleware hook.
 - **Human-approval interrupts** for selected sensitive agent actions, with SQLite-backed expiring approval tokens that are bound to a reviewer and consumed once.
@@ -61,6 +62,12 @@ For the optional LangChain/LangGraph agent middleware:
 
 ```bash
 python -m pip install "langgraph-secure-agents[langchain-agents]"
+```
+
+For the optional LangGraph node guard:
+
+```bash
+python -m pip install "langgraph-secure-agents[langgraph]"
 ```
 
 For the optional MCP server tool adapter:
@@ -325,6 +332,32 @@ report = protected_lookup("123")
 
 For multi-user applications, resolve identity from authenticated request context; do not capture one user's identity in a process-wide shared tool. Resolver logic and policy configuration are security-sensitive application code.
 
+## Optional LangGraph node protection
+
+Use `protect_node` when a sensitive operation is implemented as a LangGraph node and you want a policy check immediately before that node's body runs. This is a separate integration from the LangChain agent middleware, which protects tool calls.
+
+```python
+from langgraph.runtime import Runtime
+from langgraph_secure_agents import PolicyEngine, Principal
+from langgraph_secure_agents.langgraph import protect_node
+
+def resolve_principal(context: object) -> Principal:
+    # The host must populate this context from authenticated server-side data.
+    return Principal(context["user_id"], roles=frozenset(context["roles"]))
+
+protected_refund = protect_node(
+    refund_node,
+    policy=policy,
+    principal_resolver=resolve_principal,
+    action="refund",
+    resource_resolver=lambda state: f"order:{state['order_id']}",
+)
+builder.add_node("refund", protected_refund)
+```
+
+The node must declare a LangGraph `Runtime` parameter (for example `runtime: Runtime[RequestContext]`), and the host should pass trusted identity through `graph.invoke(..., context=...)`. The resource resolver must identify the same order the protected operation actually modifies; graph state and model-generated arguments are not trusted identity or authorization evidence.
+
+Only explicitly wrapped nodes are guarded. A deny, missing allow rule, resolver error, or configured audit callback failure stops the original node from running. `Effect.REQUIRE_APPROVAL` is not an allow: this node guard denies it before execution rather than creating an interrupt. Use the existing checkpointed tool approval flow for human review of protected agent tool calls. See the [LangGraph integration guide](docs/langgraph-integration.md) and [threat model](docs/threat-model.md).
 ## Optional agent middleware
 
 Install the `langchain-agents` extra and add the authorization middleware to a supported LangChain agent:
@@ -407,6 +440,12 @@ The repository includes a model-free LangGraph workflow using mock payroll recor
 python examples/policy_guarded_workflow.py
 ```
 
+Run the model-free LangGraph node-guard example as well:
+
+```bash
+python examples/langgraph_protected_node.py
+```
+
 The example shows one allowed HR request and two denied requests: one for an unapproved resource and one from a caller without the required role.
 
 ### End-to-end security workflow
@@ -444,6 +483,7 @@ CI tests Python 3.11, 3.12, and 3.13, checks linting, formatting, and types, and
 ## Project documentation
 
 - [Threat model](docs/threat-model.md) — trust boundaries, intended mitigations, and remaining application responsibilities.
+- [LangGraph integration](docs/langgraph-integration.md) — protecting selected graph nodes with trusted runtime context, deterministic authorization, and explicit limits.
 - [Policy bundles](docs/policy-bundles.md) — declarative format, validation, lint, simulation, and atomic policy-registry operations.
 - [Approval store](docs/approval-store.md) — expiring one-time grants and trusted reviewer binding.
 - [End-to-end security workflow](examples/secure_agent_workflow.py) — model-free customer access, human-approved refund, replay rejection, and audit verification.
