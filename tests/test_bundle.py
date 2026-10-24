@@ -388,7 +388,6 @@ def test_lint_is_quiet_for_narrow_policy_rules() -> None:
     assert bundle.lint() == ()
 
 
-
 def test_file_round_trip_supports_json_and_yaml(tmp_path: Path) -> None:
     bundle = sample_bundle()
     json_path = tmp_path / "policy.json"
