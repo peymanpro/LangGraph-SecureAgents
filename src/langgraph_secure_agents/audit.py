@@ -90,7 +90,14 @@ class AuditEvent:
         if isinstance(self.principal_roles, (str, bytes)):
             raise ValueError("principal_roles must be a collection of role names")
         try:
-            roles = tuple(sorted({self._validate_text(role, "principal role") for role in self.principal_roles}))
+            roles = tuple(
+                sorted(
+                    {
+                        self._validate_text(role, "principal role")
+                        for role in self.principal_roles
+                    }
+                )
+            )
         except TypeError as exc:
             raise ValueError("principal_roles must be an iterable of strings") from exc
         object.__setattr__(self, "principal_roles", roles)
@@ -98,7 +105,10 @@ class AuditEvent:
         if isinstance(self.matched_rule_ids, (str, bytes)):
             raise ValueError("matched_rule_ids must be a collection of rule IDs")
         try:
-            rule_ids = tuple(self._validate_text(rule_id, "matched rule ID") for rule_id in self.matched_rule_ids)
+            rule_ids = tuple(
+                self._validate_text(rule_id, "matched rule ID")
+                for rule_id in self.matched_rule_ids
+            )
         except TypeError as exc:
             raise ValueError("matched_rule_ids must be an iterable of strings") from exc
         if len(set(rule_ids)) != len(rule_ids):
