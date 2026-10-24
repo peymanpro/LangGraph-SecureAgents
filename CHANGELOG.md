@@ -4,6 +4,19 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.1.1 (2026-10-24)
+
+### Bug Fixes
+
+- **release**: Publish every project update to PyPI
+  ([`0b80b08`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/0b80b08028e595accc12900cfc46fc474868f5d4))
+
+### Documentation
+
+- Polish README for package users
+  ([`2c7ad21`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2c7ad2158dad3f6fad6934a54f61a19db36aa0a6))
+
+
 ## 0.1.0
 
 - Initial public release of the deterministic authorization policy engine.
