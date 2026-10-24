@@ -171,6 +171,7 @@ def test_concurrent_compare_and_swap_allows_only_one_policy_writer() -> None:
     assert results.count("conflict") == 1
     assert registry.snapshot().generation == 2
 
+
 def test_registry_rejects_invalid_initial_candidate_and_rollback_generation() -> None:
     with pytest.raises(TypeError, match="initial must be a PolicyBundle"):
         PolicyRegistry(object())  # type: ignore[arg-type]
