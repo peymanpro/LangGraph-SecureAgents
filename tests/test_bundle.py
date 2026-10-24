@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -382,10 +383,10 @@ def test_lint_is_quiet_for_narrow_policy_rules() -> None:
 
 
 
-def test_file_round_trip_supports_json_and_yaml(tmp_path: pytest.TempPathFactory) -> None:
+def test_file_round_trip_supports_json_and_yaml(tmp_path: Path) -> None:
     bundle = sample_bundle()
-    json_path = tmp_path / "policy.json"  # type: ignore[operator]
-    yaml_path = tmp_path / "policy.yaml"  # type: ignore[operator]
+    json_path = tmp_path / "policy.json"
+    yaml_path = tmp_path / "policy.yaml"
 
     assert bundle.to_file(json_path) == json_path
     assert PolicyBundle.from_file(json_path) == bundle
@@ -396,7 +397,7 @@ def test_file_round_trip_supports_json_and_yaml(tmp_path: pytest.TempPathFactory
 
 def test_file_api_rejects_unsupported_extensions(tmp_path: pytest.TempPathFactory) -> None:
     bundle = sample_bundle()
-    invalid_path = tmp_path / "policy.txt"  # type: ignore[operator]
+    invalid_path = tmp_path / "policy.txt"
 
     with pytest.raises(ValueError, match="must use .json"):
         bundle.to_file(invalid_path)
