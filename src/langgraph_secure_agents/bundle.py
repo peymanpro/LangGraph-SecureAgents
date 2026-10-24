@@ -11,7 +11,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .models import AttributeCondition, AttributeReference, Effect, PolicyRule
+from .models import AccessRequest, AttributeCondition, AttributeReference, Decision, DecisionReason, Effect, PolicyRule
 from .policy import PolicyEngine
 
 _SCHEMA_VERSION = 1
@@ -172,6 +172,107 @@ def _reject_non_json_constant(value: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class SimulationCase:
+    """Result for one simulated request, indexed to avoid copying sensitive inputs."""
+
+    index: int
+    decision: Decision
+    baseline_decision: Decision | None = None
+
+    @property
+    def changed(self) -> bool | None:
+        """Whether the decision or its matched-rule explanation differs from baseline."""
+
+        if self.baseline_decision is None:
+            return None
+        return self.decision != self.baseline_decision
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationReport:
+    """Aggregate outcomes from evaluating a batch against candidate and baseline policy."""
+
+    policy_id: str
+    version: str
+    digest: str
+    cases: tuple[SimulationCase, ...]
+    baseline_policy_id: str | None = None
+    baseline_version: str | None = None
+    baseline_digest: str | None = None
+
+    @property
+    def total(self) -> int:
+        return len(self.cases)
+
+    @property
+    def allowed(self) -> int:
+        return sum(case.decision.allowed for case in self.cases)
+
+    @property
+    def denied(self) -> int:
+        return sum(
+            not case.decision.allowed and not case.decision.requires_approval
+            for case in self.cases
+        )
+
+    @property
+    def approval_required(self) -> int:
+        return sum(case.decision.requires_approval for case in self.cases)
+
+    @property
+    def changed(self) -> int:
+        return sum(case.changed is True for case in self.cases)
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the report without serializing identities, resources, or attributes."""
+
+        return {
+            "policy_id": self.policy_id,
+            "version": self.version,
+            "digest": self.digest,
+            "baseline": (
+                None
+                if self.baseline_policy_id is None
+                else {
+                    "policy_id": self.baseline_policy_id,
+                    "version": self.baseline_version,
+                    "digest": self.baseline_digest,
+                }
+            ),
+            "summary": {
+                "total": self.total,
+                "allowed": self.allowed,
+                "denied": self.denied,
+                "approval_required": self.approval_required,
+                "changed": self.changed,
+            },
+            "cases": [
+                {
+                    "index": case.index,
+                    "decision": {
+                        "allowed": case.decision.allowed,
+                        "reason": case.decision.reason.value,
+                        "matched_rule_ids": list(case.decision.matched_rule_ids),
+                        "requires_approval": case.decision.requires_approval,
+                    },
+                    "baseline_decision": (
+                        None
+                        if case.baseline_decision is None
+                        else {
+                            "allowed": case.baseline_decision.allowed,
+                            "reason": case.baseline_decision.reason.value,
+                            "matched_rule_ids": list(case.baseline_decision.matched_rule_ids),
+                            "requires_approval": case.baseline_decision.requires_approval,
+                        }
+                    ),
+                    "changed": case.changed,
+                }
+                for case in self.cases
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class PolicyBundle:
     """Immutable versioned policy configuration that can be validated and deployed.
 
@@ -246,6 +347,59 @@ class PolicyBundle:
             sort_keys=True,
             ensure_ascii=False,
             allow_nan=False,
+        )
+
+    def explain(self, request: AccessRequest) -> object:
+        """Explain a request using the bundle's policy engine."""
+
+        return self.engine.explain(request)
+
+    def simulate(
+        self,
+        requests: object,
+        *,
+        baseline: PolicyBundle | None = None,
+    ) -> SimulationReport:
+        """Evaluate requests against this candidate, optionally comparing a baseline.
+
+        Request contents are deliberately not copied to the result. Case indexes
+        correspond to the input order, allowing callers to correlate outcomes in
+        their own test harness without embedding identities or attributes in reports.
+        """
+
+        if baseline is not None and not isinstance(baseline, PolicyBundle):
+            raise TypeError("baseline must be a PolicyBundle instance")
+        if isinstance(requests, (str, bytes)):
+            raise TypeError("requests must be an iterable of AccessRequest instances")
+        try:
+            request_batch = tuple(requests)  # type: ignore[arg-type]
+        except TypeError as exc:
+            raise TypeError("requests must be an iterable of AccessRequest instances") from exc
+
+        candidate_engine = self.engine
+        baseline_engine = baseline.engine if baseline is not None else None
+        cases: list[SimulationCase] = []
+        for index, request in enumerate(request_batch):
+            decision = candidate_engine.evaluate(request)
+            baseline_decision = (
+                baseline_engine.evaluate(request) if baseline_engine is not None else None
+            )
+            cases.append(
+                SimulationCase(
+                    index=index,
+                    decision=decision,
+                    baseline_decision=baseline_decision,
+                )
+            )
+
+        return SimulationReport(
+            policy_id=self.policy_id,
+            version=self.version,
+            digest=self.digest,
+            cases=tuple(cases),
+            baseline_policy_id=baseline.policy_id if baseline is not None else None,
+            baseline_version=baseline.version if baseline is not None else None,
+            baseline_digest=baseline.digest if baseline is not None else None,
         )
 
     def lint(self) -> tuple[PolicyDiagnostic, ...]:
