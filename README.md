@@ -157,6 +157,8 @@ Supported operators are `eq`, `ne`, `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `c
 
 `resource_attributes` and `context` must be populated by trusted server-side code. ABAC rules do not replace resource-level authorization in databases or APIs, and tenant isolation depends on supplying the actual resource attributes used by the protected operation.
 
+The same conditions are supported by both callable guards and the optional agent middleware. For a callable guard, pass a `resource_attributes_resolver(resource_id)` to load trusted metadata for the resolved resource, plus a zero-argument `context_resolver()` for trusted request context. For the middleware, `resource_attributes_resolver(resource_id)` receives the resolved resource ID and `context_resolver(runtime_context)` selects trusted values from the host-supplied runtime context. Resolver results must describe the actual resource and must not copy authorization attributes from model-generated tool arguments.
+
 ## Protect an existing Python callable
 
 Wrap a function that accesses a protected resource. The resolver must identify the same resource that the function actually accesses.
