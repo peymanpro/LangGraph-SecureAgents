@@ -228,9 +228,7 @@ def test_policy_registry_snapshot_metadata_is_audited() -> None:
 def test_async_node_is_authorized_before_its_body_runs() -> None:
     side_effects: list[str] = []
 
-    async def refund_node(
-        state: GraphState, runtime: Runtime[AuthContext]
-    ) -> dict[str, bool]:
+    async def refund_node(state: GraphState, runtime: Runtime[AuthContext]) -> dict[str, bool]:
         await asyncio.sleep(0)
         side_effects.append(state["resource_id"])
         return {"completed": True}
