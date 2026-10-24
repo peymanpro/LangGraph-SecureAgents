@@ -438,3 +438,68 @@ def test_bundle_rejects_boolean_schema_version_and_non_string_condition_operator
 
     with pytest.raises(ValueError, match="operator must be a string"):
         PolicyBundle.from_dict(payload)
+
+
+
+def test_bundle_parser_rejects_malformed_condition_objects() -> None:
+    payload = sample_bundle().to_dict()
+    payload["rules"][0]["conditions"] = ["not-an-object"]  # type: ignore[index]
+    with pytest.raises(ValueError, match="must be an object with string keys"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    payload["rules"][0]["conditions"][0]["attribute"] = 42  # type: ignore[index]
+    with pytest.raises(ValueError, match="attribute must be a string"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    payload["rules"][0]["conditions"][0]["operator"] = 42  # type: ignore[index]
+    with pytest.raises(ValueError, match="operator must be a string"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    condition = payload["rules"][0]["conditions"][0]  # type: ignore[index]
+    condition.pop("value_from")
+    with pytest.raises(ValueError, match="requires 'value' or 'value_from'"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    condition = payload["rules"][0]["conditions"][0]  # type: ignore[index]
+    condition["operator"] = "exists"
+    with pytest.raises(ValueError, match="does not accept 'value' or 'value_from'"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    payload["rules"][0]["effect"] = "not-an-effect"  # type: ignore[index]
+    with pytest.raises(ValueError, match="effect must be a supported effect"):
+        PolicyBundle.from_dict(payload)
+
+
+def test_bundle_parser_rejects_invalid_container_types() -> None:
+    with pytest.raises(ValueError, match="collection of PolicyRule"):
+        PolicyBundle(policy_id="sample", version="1.0.0", rules=42)  # type: ignore[arg-type]
+
+    payload = sample_bundle().to_dict()
+    payload["rules"] = "not-a-list"
+    with pytest.raises(ValueError, match="bundle.rules must be a list"):
+        PolicyBundle.from_dict(payload)
+
+    payload = sample_bundle().to_dict()
+    payload["description"] = 42
+    with pytest.raises(ValueError, match="bundle.description must be a string"):
+        PolicyBundle.from_dict(payload)
+
+    with pytest.raises(TypeError, match="content must be a JSON string"):
+        PolicyBundle.from_json(42)  # type: ignore[arg-type]
+
+    deeply_nested = "[" * 1500 + "0" + "]" * 1500
+    with pytest.raises(ValueError, match="nested too deeply"):
+        PolicyBundle.from_json(deeply_nested)
+
+
+def test_yaml_parser_rejects_non_string_and_unhashable_mapping_keys() -> None:
+    with pytest.raises(TypeError, match="content must be a YAML string"):
+        PolicyBundle.from_yaml(None)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="mapping keys must be hashable"):
+        PolicyBundle.from_yaml("? [first, second]\n: invalid\n")
