@@ -22,7 +22,6 @@ from langgraph_secure_agents import (
 )
 from langgraph_secure_agents.mcp_adapter import protect_mcp_tool
 
-
 _CUSTOMERS = {
     "customer-101": {"tenant_id": "tenant-a", "summary": "Customer 101"},
     "customer-202": {"tenant_id": "tenant-b", "summary": "Customer 202"},
