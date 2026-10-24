@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import pytest
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
+from langgraph.types import Command, interrupt
 
 from langgraph_secure_agents import (
     AuthorizationDenied,
@@ -25,6 +28,7 @@ from langgraph_secure_agents.langgraph import protect_node
 class GraphState(TypedDict):
     resource_id: str
     completed: bool
+    claimed_roles: list[str]
 
 
 class AuthContext(TypedDict):
@@ -74,7 +78,7 @@ def _graph(
 
 
 def _initial_state(resource_id: str = "order:42") -> GraphState:
-    return {"resource_id": resource_id, "completed": False}
+    return {"resource_id": resource_id, "completed": False, "claimed_roles": []}
 
 
 def _context(roles: list[str] | None = None) -> AuthContext:
@@ -405,3 +409,96 @@ def test_non_principal_resolver_result_is_rejected_before_execution() -> None:
             principal_resolver=lambda _context: "alice",
         ).invoke(_initial_state(), context=_context())
     assert side_effects == []
+
+
+def test_untrusted_graph_state_cannot_escalate_principal_roles() -> None:
+    side_effects: list[str] = []
+
+    def refund_node(state: GraphState, runtime: Runtime[AuthContext]) -> dict[str, bool]:
+        side_effects.append(state["resource_id"])
+        return {"completed": True}
+
+    spoofed_state = _initial_state()
+    spoofed_state["claimed_roles"] = ["operator"]
+    with pytest.raises(AuthorizationDenied) as raised:
+        _graph(refund_node, _policy()).invoke(
+            spoofed_state,
+            context=_context(roles=["viewer"]),
+        )
+
+    assert raised.value.request.principal.roles == frozenset({"viewer"})
+    assert side_effects == [], "model-controlled state must not grant an operator role"
+
+
+def test_protected_node_preserves_command_routing_and_runtime_config() -> None:
+    visited: list[str] = []
+
+    def route_to_finish(
+        state: GraphState,
+        config: RunnableConfig,
+        runtime: Runtime[AuthContext],
+    ) -> Command[Literal["finish"]]:
+        assert config.get("tags") == ["node-guard-test"]
+        assert runtime.context["user_id"] == "alice"
+        return Command(goto="finish", update={"completed": True})
+
+    def finish_node(state: GraphState, runtime: Runtime[AuthContext]) -> dict[str, bool]:
+        visited.append("finish")
+        return {"completed": True}
+
+    protected = protect_node(
+        route_to_finish,
+        policy=_policy(),
+        principal_resolver=_principal,
+        action="refund",
+        resource_resolver=lambda state: state["resource_id"],
+    )
+    builder = StateGraph(GraphState, context_schema=AuthContext)
+    builder.add_node("refund", protected)
+    builder.add_node("finish", finish_node)
+    builder.add_edge(START, "refund")
+    builder.add_edge("finish", END)
+    graph = builder.compile()
+
+    result = graph.invoke(
+        _initial_state(),
+        config={"configurable": {"thread_id": "command-preservation"}, "tags": ["node-guard-test"]},
+        context=_context(),
+    )
+
+    assert result["completed"] is True
+    assert visited == ["finish"]
+
+
+def test_protected_node_preserves_interrupt_and_resume() -> None:
+    resumed_values: list[str] = []
+
+    def interruptible_node(state: GraphState, runtime: Runtime[AuthContext]) -> dict[str, bool]:
+        decision = interrupt({"operation": "refund", "resource": state["resource_id"]})
+        resumed_values.append(str(decision))
+        return {"completed": True}
+
+    protected = protect_node(
+        interruptible_node,
+        policy=_policy(),
+        principal_resolver=_principal,
+        action="refund",
+        resource_resolver=lambda state: state["resource_id"],
+    )
+    builder = StateGraph(GraphState, context_schema=AuthContext)
+    builder.add_node("refund", protected)
+    builder.add_edge(START, "refund")
+    builder.add_edge("refund", END)
+    graph = builder.compile(checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": "interrupt-preservation"}}
+
+    paused = graph.invoke(_initial_state(), config=config, context=_context())
+    assert paused["__interrupt__"][0].value == {
+        "operation": "refund",
+        "resource": "order:42",
+    }
+    assert resumed_values == []
+
+    resumed = graph.invoke(Command(resume="approved-by-test"), config=config, context=_context())
+    assert resumed["completed"] is True
+    assert resumed_values == ["approved-by-test"]
