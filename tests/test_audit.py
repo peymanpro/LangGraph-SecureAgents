@@ -344,4 +344,3 @@ def test_opentelemetry_callback_rejects_non_audit_events() -> None:
     callback = create_opentelemetry_callback()
     with pytest.raises(TypeError, match="AuditEvent instance"):
         callback(object())  # type: ignore[arg-type]
-
