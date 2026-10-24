@@ -4,6 +4,43 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.6.0 (2026-10-24)
+
+### Bug Fixes
+
+- Scope audit summary to current demo run
+  ([`3056bb6`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/3056bb6f562cbf8496419b3a7256709ab43d02dd))
+
+- Tighten end-to-end demo types and formatting
+  ([`e686d61`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/e686d614bb863907dc6914aa6a2400f1594e5f85))
+
+### Chores
+
+- Ignore local security demo databases
+  ([`9cea72d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/9cea72d9516ebc8d5abcad0cc300722ae3257cdb))
+
+### Documentation
+
+- Document end-to-end security workflow
+  ([`869ceb2`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/869ceb2433c0159650efbb12dfc2a6770dad676c))
+
+### Features
+
+- Add end-to-end secure agent workflow demo
+  ([`8978a5e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/8978a5e9dbcac57b498419b76dbbb04e7172a8bb))
+
+### Testing
+
+- Account for checkpoint resume audit events
+  ([`18fc945`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/18fc945a8a35c452670932e5a831d2dd5c6f4b28))
+
+- Cover end-to-end security workflow
+  ([`5c40cba`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5c40cbad14b87f3a887fcfb73f553c2a85a15376))
+
+- Verify demo reports remain scoped across persistent runs
+  ([`64d0fe8`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/64d0fe89c3425e98bbd158740ed09996329931c7))
+
+
 ## v0.5.1 (2026-10-24)
 
 ### Documentation
