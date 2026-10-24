@@ -82,7 +82,7 @@ class SQLiteAuditSink:
 
     @staticmethod
     def _entry_hash(sequence: int, previous_hash: str, payload_json: str) -> str:
-        material = f"{sequence}\\n{previous_hash}\\n{payload_json}".encode("utf-8")
+        material = f"{sequence}\n{previous_hash}\\n{payload_json}".encode("utf-8")
         return hashlib.sha256(material).hexdigest()
 
     def __call__(self, event: AuditEvent) -> None:
