@@ -150,3 +150,23 @@ def test_callable_guard_observes_policy_reload_and_audits_active_version() -> No
         bundle("1.0.0").digest,
         bundle("1.1.0", "manager").digest,
     ]
+
+
+def test_concurrent_compare_and_swap_allows_only_one_policy_writer() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    registry = PolicyRegistry(bundle("1.0.0"))
+
+    def publish(version: str) -> str:
+        try:
+            registry.publish(bundle(version), expected_generation=1)
+            return "published"
+        except PolicyUpdateConflict:
+            return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(publish, ("1.1.0", "1.2.0")))
+
+    assert results.count("published") == 1
+    assert results.count("conflict") == 1
+    assert registry.snapshot().generation == 2
