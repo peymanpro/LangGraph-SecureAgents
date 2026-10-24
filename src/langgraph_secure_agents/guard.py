@@ -57,7 +57,7 @@ def protect_callable(
 def protect_callable(
     function: Callable[P, R],
     *,
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: Callable[[], Principal],
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
@@ -76,7 +76,7 @@ def protect_callable(
 def protect_callable(
     function: Callable[P, Any],
     *,
-    policy: PolicyEngine,
+    policy: PolicyEngine | PolicyRegistry,
     principal_resolver: Callable[[], Principal],
     action: str = "execute",
     resource_resolver: ResourceResolver[P] | None = None,
