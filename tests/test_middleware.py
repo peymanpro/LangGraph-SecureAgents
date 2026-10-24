@@ -947,7 +947,6 @@ def test_abac_condition_definitions_are_bound_into_approval_fingerprint(
     assert fingerprints[0] != fingerprints[1]
 
 
-
 def test_middleware_rejects_non_callable_attribute_resolvers() -> None:
     options: dict[str, Any] = {
         "policy": PolicyEngine(),
