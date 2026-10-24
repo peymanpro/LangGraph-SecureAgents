@@ -27,7 +27,6 @@ def test_source_checkout_version_falls_back_without_distribution_metadata(
     importlib.reload(package)
 
 
-
 def test_package_exports_structured_audit_api() -> None:
     import langgraph_secure_agents as package
 
