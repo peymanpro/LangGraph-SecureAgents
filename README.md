@@ -205,7 +205,7 @@ The repository includes [a payroll policy in YAML](examples/policies/payroll.yam
 
 ## Structured audit events and OpenTelemetry
 
-Use `audit_event_callback` to receive a typed `AuditEvent` for each authorization outcome at a protected callable or agent-tool boundary. Events include a unique event ID, UTC timestamp, source, action, resource, decision reason, matched-rule IDs, evaluation duration, and optional policy bundle metadata.
+Use `audit_event_callback` to receive a typed `AuditEvent` for each authorization outcome at a protected callable or agent-tool boundary. Events include a unique event ID, UTC timestamp, source, action, resource, decision reason, matched-rule IDs, evaluation duration, and optional policy bundle metadata. Middleware events also carry the tool-call ID, runtime task ID, and tool name when available; callable guards can resolve trusted request and execution IDs.
 
 ```python
 from langgraph_secure_agents import PolicyBundle, create_opentelemetry_callback
