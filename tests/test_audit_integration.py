@@ -242,9 +242,7 @@ def test_middleware_audits_policy_and_final_human_approval_outcomes(
         return {
             "approved": resume_outcome != "denied",
             "request_fingerprint": (
-                "stale-fingerprint"
-                if resume_outcome == "stale"
-                else payload["request_fingerprint"]
+                "stale-fingerprint" if resume_outcome == "stale" else payload["request_fingerprint"]
             ),
         }
 
