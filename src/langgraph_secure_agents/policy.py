@@ -138,9 +138,13 @@ class PolicyEngine:
         if operator is ConditionOperator.EQ:
             return cls._safe_equal(actual, expected)
         if operator is ConditionOperator.NE:
+            if not cls._compatible_values(actual, expected):
+                return False
             return not cls._safe_equal(actual, expected)
         if operator in {ConditionOperator.IN, ConditionOperator.NOT_IN}:
-            if not isinstance(expected, (tuple, frozenset)):
+            if not isinstance(expected, (tuple, frozenset)) or not expected:
+                return False
+            if not any(cls._compatible_values(actual, item) for item in expected):
                 return False
             is_member = cls._member_of(actual, expected)
             return is_member if operator is ConditionOperator.IN else not is_member
@@ -194,6 +198,14 @@ class PolicyEngine:
                 return _MISSING
             current = current[part]
         return current
+
+    @staticmethod
+    def _compatible_values(left: object, right: object) -> bool:
+        """Reject type-confused NE/NOT_IN matches instead of treating them as grants."""
+
+        if type(left) is type(right):
+            return True
+        return type(left) in (int, float) and type(right) in (int, float)
 
     @classmethod
     def _safe_equal(cls, left: object, right: object) -> bool:
