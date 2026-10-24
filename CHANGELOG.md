@@ -4,6 +4,119 @@ User-facing changes for each published version. New release entries are inserted
 
 <!-- version list -->
 
+## v0.7.0 (2026-10-24)
+
+### Bug Fixes
+
+- Require resolved MCP Context annotation
+  ([`2c6c6c9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2c6c6c994ca66207bec96d4771db1752c2d52fa0))
+
+### Build System
+
+- Add optional MCP SDK extra
+  ([`35906d3`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/35906d33cedfcde7c7b411e71879e4867ba3e5f5))
+
+### Code Style
+
+- Finalize sorted test imports
+  ([`e7a8019`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/e7a8019519aed136aa6f05766e434de413c48b7c))
+
+- Fix MCP adapter lint findings
+  ([`2534b0d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/2534b0debe7f71cd87261d03747134161df759ff))
+
+- Format async MCP test principal resolver
+  ([`5195e26`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5195e26b0c1b7c05e6181f4b1854bd9246e232d5))
+
+- Format MCP context resolver
+  ([`71baf43`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/71baf431cbe681ba6ccd67219a2df3e82faedb84))
+
+- Normalize MCP test imports
+  ([`8ff5b2f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/8ff5b2f92542911014e471de4023028c96b9c70d))
+
+- Order MCP adapter test imports
+  ([`8741e0d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/8741e0da0fc0134baa184b4154c926cc639c65a6))
+
+- Restore Ruff-sorted test imports
+  ([`08756b9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/08756b91ef29270574814ace4ed876a97b825fd9))
+
+- Sort MCP adapter test imports
+  ([`d701cfc`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d701cfc348f5200599a0f7ed0102dd194214e6ae))
+
+### Continuous Integration
+
+- Diagnose MCP test import ordering
+  ([`06d5776`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/06d57763469f60814e5bc1f237aee4e9bddbd492))
+
+- Remove temporary import diagnostic
+  ([`f03a962`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f03a962f7bda8303c8fe6a93d864f20e2000652f))
+
+- Scope MCP smoke-test policy to trusted role
+  ([`6a038cd`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/6a038cd1c3af42f6ab1f45f4ced04559677ae742))
+
+- Scope MCP smoke-test policy to trusted role
+  ([`eeceef9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/eeceef938e2de7dd277243a7b493ec6fbe35210c))
+
+- Smoke-test optional MCP tool adapter
+  ([`5fe8562`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5fe85625f5c098ff7c3676fa828b26102a25f7b0))
+
+- Smoke-test optional MCP tool adapter
+  ([`f0fe066`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f0fe06652f55f69c524c18ece237bcaf32eb9479))
+
+### Documentation
+
+- Add MCP tool authorization guide
+  ([`d1b236d`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d1b236d812f3ff0964edae614d193db8b9d8633b))
+
+- Clarify MCP authorization boundary in docs/audit-events.md
+  ([`646d9ff`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/646d9ff91f4417798ad043072862e403b8f59572))
+
+- Clarify MCP authorization boundary in README.md
+  ([`12783df`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/12783df65c18e8349ad469a75c7074b429dd9422))
+
+- Clarify MCP security boundary in docs/threat-model.md
+  ([`babb362`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/babb3624c170504b1d0955e7db4c1bd83611581c))
+
+- Clarify MCP security boundary in SECURITY.md
+  ([`5aa4513`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/5aa4513d090b14afcaeef61bf7960f94f7d34153))
+
+- Distinguish MCP audit correlation fields
+  ([`28734bd`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/28734bd29c80ddf757b72a6d253dc2fee060a16e))
+
+- Document optional MCP tool authorization
+  ([`367d652`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/367d6526bf0f7aad72b875c1925e74f6d0c3604b))
+
+- Format MCP README example
+  ([`867a588`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/867a588a99b427a1b7dd92a48790b211eddd7249))
+
+### Features
+
+- Add optional MCP tool authorization adapter
+  ([`41170a9`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/41170a9e729bc9760ae91382389f1f1499fc9ff0))
+
+- Add secured MCP server example
+  ([`a79af73`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/a79af735ef2b92cb206160efac844d0c369e2795))
+
+### Testing
+
+- Add principal role to async MCP policy
+  ([`73dcd7f`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/73dcd7f18e3b056936f89f447ce4612a3651f7b9))
+
+- Assert MCP denials as protocol error results
+  ([`d57dbe8`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d57dbe8788e0b113dc820a8f16ebc6197647fe1c))
+
+- Cover MCP tool authorization adapter
+  ([`d3854df`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/d3854dfa352b4c0e6bb8b18b7112fbb3c7e35377))
+
+- Import audit event from public API
+  ([`f21b7a0`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/f21b7a00d03cf3df90f001f1bef06b178aa8450e))
+
+- Remove function call from context default
+  ([`ba4f99e`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/ba4f99ef0fdfb55b6adda78d88297507af6118a7))
+
+- Tighten MCP context validation case
+  ([`45f7fc6`](https://github.com/peymanpro/LangGraph-SecureAgents/commit/45f7fc62873aca053cd80472e2f6a096f6323242))
+
+
 ## v0.6.0 (2026-10-24)
 
 ### Bug Fixes
