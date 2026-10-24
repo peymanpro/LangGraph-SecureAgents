@@ -174,9 +174,7 @@ def protect_mcp_tool(
                 raise TypeError("resource_attributes_resolver must return a mapping")
 
             context_attributes = (
-                {}
-                if context_resolver is None
-                else context_resolver(cast(Context, mcp_context))
+                {} if context_resolver is None else context_resolver(cast(Context, mcp_context))
             )
             if not isinstance(context_attributes, Mapping):
                 raise TypeError("context_resolver must return a mapping")
