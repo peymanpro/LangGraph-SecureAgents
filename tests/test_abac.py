@@ -346,7 +346,6 @@ def test_membership_condition_rejects_empty_literal_collections() -> None:
         AttributeCondition("context.roles", ConditionOperator.NOT_IN, [])
 
 
-
 def test_attribute_freezing_validates_nested_mapping_edges_and_finite_floats() -> None:
     principal = Principal("alice", attributes={"risk": 1.25, "label": "trusted"})
     assert principal.attributes["risk"] == 1.25
@@ -494,12 +493,18 @@ def test_contains_operator_handles_strings_and_mapping_keys() -> None:
     key_condition = AttributeCondition("context.permissions", ConditionOperator.CONTAINS, "read")
     bad_type_condition = AttributeCondition("context.label", ConditionOperator.CONTAINS, 3)
 
-    assert PolicyEngine([allow_rule(text_condition)]).evaluate(
-        request(context={"label": "read-only"})
-    ).allowed
-    assert PolicyEngine([allow_rule(key_condition)]).evaluate(
-        request(context={"permissions": {"read": True}})
-    ).allowed
-    assert not PolicyEngine([allow_rule(bad_type_condition)]).evaluate(
-        request(context={"label": "read-only"})
-    ).allowed
+    assert (
+        PolicyEngine([allow_rule(text_condition)])
+        .evaluate(request(context={"label": "read-only"}))
+        .allowed
+    )
+    assert (
+        PolicyEngine([allow_rule(key_condition)])
+        .evaluate(request(context={"permissions": {"read": True}}))
+        .allowed
+    )
+    assert (
+        not PolicyEngine([allow_rule(bad_type_condition)])
+        .evaluate(request(context={"label": "read-only"}))
+        .allowed
+    )
