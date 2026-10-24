@@ -75,7 +75,7 @@ major_on_zero = false
 
 [tool.semantic_release.commit_parser_options]
 minor_tags = ["feat"]
-patch_tags = ["fix", "perf", "docs", "style", "refactor", "test", "build", "ci"]
+patch_tags = ["fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
 parse_squash_commits = true
 ignore_merge_commits = true
 
