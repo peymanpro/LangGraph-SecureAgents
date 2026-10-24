@@ -32,7 +32,7 @@ guarded_lookup = protect_callable(
 
 request_id_resolver receives the same arguments as the protected callable, through the library's detached-copy resolver boundary. execution_id_resolver takes no arguments. Use trusted application context for both; do not derive identity or correlation values from model-generated claims. These optional resolvers are only evaluated when audit_event_callback is configured.
 
-For LangChain/LangGraph tools, create_authorization_middleware accepts the same audit_event_callback and policy metadata parameters. The optional MCP adapter emits the same event shape with source mcp_tool for explicitly protected MCP tool handlers. Its event includes the tool-call ID as request_id, the runtime task ID as execution_id when available, and the tool name separately from the policy resource.
+For LangChain/LangGraph tools, create_authorization_middleware accepts the same audit_event_callback and policy metadata parameters. Middleware events carry the tool-call ID as request_id, the runtime task ID as execution_id when available, and the tool name separately from the policy resource. The optional MCP adapter emits the same event shape with source mcp_tool, the MCP Context request ID where available, and the registered tool name; it does not synthesize an execution_id.
 
 ## Event schema
 
