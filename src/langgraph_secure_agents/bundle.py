@@ -110,6 +110,10 @@ def _parse_condition(value: object, index: int) -> AttributeCondition:
     )
     has_value = "value" in condition
     has_reference = "value_from" in condition
+    if not isinstance(condition["attribute"], str):
+        raise ValueError(f"{where}.attribute must be a string")
+    if not isinstance(condition["operator"], str):
+        raise ValueError(f"{where}.operator must be a string")
     if has_value and has_reference:
         raise ValueError(f"{where} cannot contain both 'value' and 'value_from'")
     if has_reference and not isinstance(condition["value_from"], str):
@@ -485,7 +489,10 @@ class PolicyBundle:
             raise ValueError("policy bundle must be an object with string keys")
         payload = dict(value)
         _reject_unknown_keys(payload, _BUNDLE_KEYS, _BUNDLE_KEYS - {"description"}, where="bundle")
-        if payload["schema_version"] != _SCHEMA_VERSION:
+        if (
+            type(payload["schema_version"]) is not int
+            or payload["schema_version"] != _SCHEMA_VERSION
+        ):
             raise ValueError(f"unsupported policy bundle schema_version: {payload['schema_version']!r}")
         if not isinstance(payload["rules"], list):
             raise ValueError("bundle.rules must be a list")
