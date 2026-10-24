@@ -51,6 +51,14 @@ When an audit callback is configured, callback failure stops protected execution
 - When a rule specifies both principal IDs and roles, both constraints must match.
 - A REQUIRE_APPROVAL policy returns a non-allowing decision and the optional LangGraph middleware pauses before tool execution. Its request fingerprint covers the principal, roles, tool call, canonical JSON arguments, action, resource, exact matched policy definitions, and LangGraph execution scope (`thread_id`, `checkpoint_id`, `checkpoint_ns`, and `task_id`). Approval-required calls fail closed when this metadata or an active checkpointer is unavailable. This makes an identical request in a different checkpoint produce a different fingerprint. The fingerprint does not authenticate a reviewer or itself prevent repeated use of a completely identical approval in the same execution. The host application must authenticate reviewers, authorize access to the resume endpoint, ensure per-operation IDs are unique, and durably consume each approval once for side-effecting tools. The optional `approval_validator` callback allows those controls to be enforced at the middleware boundary; the callback must use trusted reviewer identity and durable atomic consumption, return literal `True` only for a valid first use, and fail closed otherwise. If omitted, those controls remain the host application's responsibility. Applications must not treat a normal allow decision as evidence of human approval.
 
+### Attribute-based authorization
+
+Policy rules may use typed conditions over principal attributes, resource attributes, and request context. Each condition must match; a missing attribute does not satisfy a comparison or membership operator. Only NOT_EXISTS explicitly matches a missing path. Attribute paths are validated and resolved through mapping lookups; the engine never evaluates Python code or arbitrary policy expressions.
+
+The application must populate principal attributes from authenticated, validated identity claims; resource attributes from the actual resource being accessed; and context from trusted server-side request state. In particular, tenant matching only helps prevent cross-tenant access when the supplied resource attributes describe the same tenant and resource that the protected operation actually reads or modifies. This library does not automatically secure database queries or discover resource ownership.
+
+Attribute values are recursively frozen and restricted to JSON-compatible data. Comparisons are type-aware so that values such as boolean true and integer 1 are not treated as equivalent. Unsupported operands fail the condition rather than granting access.
+
 ## In-scope threats
 
 | Threat | Intended mitigation | Remaining responsibility |
@@ -69,7 +77,7 @@ When an audit callback is configured, callback failure stops protected execution
 This library does not itself provide:
 
 - Authentication, session management, or identity-provider integration.
-- Database-level security, tenant isolation, or protection from incorrectly implemented resource resolvers.
+- Database-level security or automatic tenant isolation. ABAC can compare trusted tenant/resource attributes, but the application must populate them correctly and guard every sensitive execution path.
 - Prevention of prompt injection, model hallucinations, data exfiltration through tools that are not guarded, or unsafe model-generated code.
 - Rate limiting, secrets management, encryption, network security, or denial-of-service protection.
 - A human reviewer service or proof that an approval came from an authorized reviewer; the host application must supply these.
@@ -81,6 +89,7 @@ This library does not itself provide:
 - Build principal identity and roles from trusted, validated server-side claims.
 - Do not permit untrusted clients to set privileged graph runtime context.
 - Prefer explicit action/resource policies; keep wildcard rules rare and reviewed.
+- Populate principal attributes from trusted identity claims and resource attributes from the actual resource being accessed; never trust LLM-produced or client-supplied tenant identifiers.
 - Use resource resolvers that bind the authorization target to the exact resource and tenant used by the protected operation.
 - Apply guards to every path that can invoke a sensitive operation.
 - Keep downstream authorization enabled.
