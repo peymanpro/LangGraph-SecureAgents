@@ -207,6 +207,7 @@ def test_opentelemetry_callback_creates_span_when_none_is_recording(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from contextlib import AbstractContextManager
+
     from opentelemetry import trace
 
     class RecordingSpan:
