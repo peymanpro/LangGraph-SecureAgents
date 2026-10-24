@@ -2,7 +2,7 @@
 
 ## Scope
 
-LangGraph-SecureAgents provides deterministic policy evaluation and optional enforcement at Python-callable and LangChain agent tool-call boundaries, plus explicitly decorated MCP server tool-handler boundaries when the optional MCP adapter is installed. It is designed to reduce accidental or model-induced access to tools and resources that the application has explicitly protected. The MCP adapter does not automatically protect MCP resources, prompts, or handlers that have not been decorated.
+LangGraph-SecureAgents provides deterministic policy evaluation and optional enforcement at Python-callable boundaries, explicitly wrapped LangGraph nodes, LangChain agent tool-call boundaries, and explicitly decorated MCP server tool-handler boundaries when the optional MCP adapter is installed. It is designed to reduce accidental or model-induced access to tools and resources that the application has explicitly protected. None of these integrations automatically protects every graph node, tool, MCP resource, prompt, or alternate execution path.
 
 This document describes the intended trust boundaries. It is not a security audit or a claim that every integration is safe by default.
 
@@ -20,6 +20,8 @@ This document describes the intended trust boundaries. It is not a security audi
 The host application authenticates the caller and supplies a Principal from trusted claims. The library does not authenticate users or verify the truth of principal IDs and roles.
 
 For graph integrations, runtime context is separate from graph state, but its values are only trustworthy if the host application constructs them from a trusted source. Passing an unvalidated client-supplied context directly to a graph is not an authentication mechanism.
+
+The optional `protect_node` integration resolves the `Principal` from `runtime.context`. Runtime context is a transport mechanism, not proof of identity: the host must authenticate the caller, authorize the graph invocation, and supply context from trusted server-side state. The protected node must declare a LangGraph `Runtime` parameter so the runtime context can be read; absent runtime data fails closed before the node body executes.
 
 ### Untrusted model output and tool arguments
 
@@ -40,6 +42,8 @@ Action and resource resolvers take part in authorization decisions. Mutating inp
 ### Protected operation and underlying resource
 
 A wrapper only guards the callable or tool handler to which it is applied. The configured resource resolver must identify the same tenant and resource that the operation actually accesses. If the resolver checks one resource while the function accesses another, authorization can be bypassed.
+
+`protect_node` applies the same boundary to one explicitly wrapped LangGraph node. It evaluates policy immediately before calling that node and preserves the node's result when allowed. An unwrapped node, a direct call to the underlying function, another graph path, or an independently callable tool is outside this boundary. Graph state and node arguments may be influenced by model output; resource resolvers must map them to the exact object actually modified using trusted resource metadata. Resolver inputs are detached and checked for mutation, which also means resolver inputs must be safely copyable. A `REQUIRE_APPROVAL` decision is not an allow: this wrapper raises `AuthorizationDenied` rather than performing a human-approval interrupt.
 
 Downstream APIs, databases, and storage systems should continue enforcing their own authorization and tenant boundaries.
 
@@ -84,7 +88,7 @@ Attribute values are recursively frozen and restricted to JSON-compatible data. 
 This library does not itself provide:
 
 - Authentication, session management, or identity-provider integration.
-- Database-level security or automatic tenant isolation. ABAC can compare trusted tenant/resource attributes, but the application must populate them correctly and guard every sensitive execution path.
+- Database-level security or automatic tenant isolation. ABAC can compare trusted tenant/resource attributes, but the application must populate them correctly and guard every sensitive execution path. The LangGraph node guard only covers nodes explicitly wrapped with `protect_node`; it does not automatically secure an entire graph.
 - Prevention of prompt injection, model hallucinations, data exfiltration through tools that are not guarded, or unsafe model-generated code.
 - Rate limiting, secrets management, encryption, network security, or denial-of-service protection.
 - A human reviewer service or proof that an approval came from an authorized reviewer; the host application must supply these. The SQLite approval store manages grants, not identity or reviewer authorization.
@@ -100,7 +104,7 @@ This library does not itself provide:
 - Prefer explicit action/resource policies; keep wildcard rules rare and reviewed.
 - Populate principal attributes from trusted identity claims and resource attributes from the actual resource being accessed; never trust LLM-produced or client-supplied tenant identifiers.
 - Use resource resolvers that bind the authorization target to the exact resource and tenant used by the protected operation.
-- Apply guards to every path that can invoke a sensitive operation.
+- Apply guards to every path that can invoke a sensitive operation. For LangGraph, wrap each sensitive node with `protect_node` and review alternate graph, callable, and tool entry points.
 - Keep downstream authorization enabled.
 - Configure SQLiteAuditSink or another durable audit callback when audit persistence is required; plan backups, retention, and external integrity anchoring.
 - For approval-required side effects, configure SQLiteApprovalStore and derive the reviewer ID from authenticated server-side resume context; do not rely on the fingerprint alone.
