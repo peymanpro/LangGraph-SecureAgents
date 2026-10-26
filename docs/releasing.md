@@ -32,6 +32,14 @@ The PyPI publishing job runs only after the release job succeeds. It receives `i
 
 The workflow's version commit is tagged as the release itself. Subsequent pushes to `main` trigger validation and version analysis, but only eligible commit types can create the next release; no manual tag creation is required.
 
+## Recovering a failed PyPI publication
+
+Use this recovery path only when a stable GitHub Release already exists but that exact version is **not present on PyPI**. Open **Actions → Automatic Release → Run workflow** on the `main` branch, enable **Retry PyPI publication for an existing GitHub Release**, and enter the version without the leading `v` (for example, `0.8.1`).
+
+The workflow deliberately skips the normal semantic-release job for this run. It validates that the selected stable GitHub Release exists, checks out its exact tag, confirms that the tag and `project.version` agree, builds and validates the wheel and source distribution, smoke-tests the installed wheel, and verifies that the version is absent from PyPI before publishing with the same Trusted Publisher. It does not create another GitHub Release or move a tag.
+
+PyPI versions are immutable. If any files for that version are already published—including after a partial upload—do not retry that version; create a new patch release through the normal Conventional Commit process. The retry job uses the existing `pypi` environment and requires no permanent PyPI API token.
+
 ## Verification after each release
 
 Check that the [GitHub Releases](https://github.com/peymanpro/LangGraph-SecureAgents/releases) and [PyPI project page](https://pypi.org/project/langgraph-secure-agents/) show the same version. Install that exact version in a clean virtual environment and smoke-test the core API. Separately install and verify the `langgraph`, `langchain-agents`, `opentelemetry`, and `mcp` extras; CI exercises each optional integration in its own clean environment. The package metadata includes the README, so publishing a new version also refreshes the project description displayed on PyPI.
