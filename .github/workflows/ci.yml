@@ -78,7 +78,26 @@ jobs:
               raise SystemExit("PyPI publishing job must not request repository contents permissions")
           if jobs.get("publish-pypi", {}).get("needs") != "release":
               raise SystemExit("PyPI publishing must depend on the release job")
-          print("Workflow YAML, action SHA pins, and automatic-release permissions validated.")
+
+          dispatch_inputs = triggers.get("workflow_dispatch", {}).get("inputs", {})
+          retry_input = dispatch_inputs.get("publish_existing_version", {})
+          if retry_input.get("type") != "boolean" or retry_input.get("default") is not False:
+              raise SystemExit("manual existing-release recovery must be opt-in")
+          if "version" not in dispatch_inputs:
+              raise SystemExit("manual recovery must accept an explicit release version")
+
+          retry = jobs.get("retry-existing-pypi", {})
+          if retry.get("needs") != ["quality", "package-smoke"]:
+              raise SystemExit("PyPI recovery must depend on current quality and package smoke tests")
+          retry_condition = str(retry.get("if", ""))
+          if "workflow_dispatch" not in retry_condition or "inputs.publish_existing_version" not in retry_condition:
+              raise SystemExit("PyPI recovery must be manually triggered and explicitly opted in")
+          retry_permissions = retry.get("permissions", {})
+          if retry_permissions.get("id-token") != "write" or retry_permissions.get("contents") != "read":
+              raise SystemExit("PyPI recovery must use read-only contents plus scoped OIDC permissions")
+          if retry.get("environment", {}).get("name") != "pypi":
+              raise SystemExit("PyPI recovery must use the configured pypi environment")
+          print("Workflow YAML, action SHA pins, release policy, and PyPI recovery permissions validated.")
           PY
 
       - name: Type check
