@@ -1,6 +1,6 @@
 # LangGraph-SecureAgents
 
-**A Python security library for deterministic, policy-driven authorization of AI agents.**
+**LangGraph-SecureAgents is a Python security library for deterministic, policy-driven authorization of AI agents.**
 
 [![PyPI version](https://img.shields.io/pypi/v/langgraph-secure-agents)](https://pypi.org/project/langgraph-secure-agents/)
 [![Python versions](https://img.shields.io/pypi/pyversions/langgraph-secure-agents)](https://pypi.org/project/langgraph-secure-agents/)
