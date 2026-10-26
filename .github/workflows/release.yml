@@ -357,6 +357,11 @@ jobs:
         with:
           ref: v${{ inputs.version }}
           fetch-depth: 0
+      - name: Set up Python for release verification
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
       - name: Verify package version matches the tag
         env:
           RELEASE_VERSION: ${{ inputs.version }}
