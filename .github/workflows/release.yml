@@ -404,10 +404,34 @@ jobs:
               raise SystemExit(f"Could not verify PyPI version status: {error}") from error
           print(f"PyPI does not list version {version}; retry may proceed.")
           PY
-      - name: Build and validate the tagged distributions
+      - name: Download the exact distributions attached to the GitHub Release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: v${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python -m pip install --upgrade pip build twine
-          python -m build
+          mkdir -p dist
+          gh release download "$RELEASE_TAG" \
+            --pattern "langgraph_secure_agents-${RELEASE_VERSION}-py3-none-any.whl" \
+            --pattern "langgraph_secure_agents-${RELEASE_VERSION}.tar.gz" \
+            --dir dist
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          version = os.environ["RELEASE_VERSION"]
+          expected = {
+              f"langgraph_secure_agents-{version}-py3-none-any.whl",
+              f"langgraph_secure_agents-{version}.tar.gz",
+          }
+          actual = {path.name for path in Path("dist").iterdir() if path.is_file()}
+          if actual != expected:
+              raise SystemExit(f"Expected release files {sorted(expected)}, found {sorted(actual)}")
+          print(f"Downloaded both original artifacts for {version}.")
+          PY
+      - name: Validate the original release distributions
+        run: |
+          python -m pip install --upgrade pip twine
           python -m twine check dist/*
       - name: Smoke-test the built wheel
         env:
